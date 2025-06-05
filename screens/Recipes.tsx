@@ -10,7 +10,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
+
+const API_BASE_URL = 'http://192.168.1.31:8080/api/recetas/aprobadas'; // ← CAMBIAR por tu URL real
 
 const StarRating = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating);
@@ -41,9 +44,9 @@ interface Usuario {
 
 interface Receta {
   id: number;
-  titulo: string;
-  descripcion: string;
-  imagen: string;
+  nombreReceta: string;
+  descripcionReceta: string;
+  fotoPrincipal: string;
   estrellas: number;
   usuario: Usuario;
   favorita: boolean;
@@ -57,53 +60,25 @@ export default function RecipesScreen() {
   const [orden, setOrden] = useState<OrdenClave>('populares');
   const [ascendente, setAscendente] = useState<boolean>(false);
 
-  useEffect(() => {
-    const datosSimulados: Receta[] = [
-      {
-        id: 1,
-        titulo: 'Tarta de manzana',
-        descripcion: 'Una tarta dulce y crujiente perfecta para la merienda.',
-        imagen:
-          'https://www.cocinandoconcatman.com/wp-content/uploads/2015/03/tarta-de-manzana-holandesa-corte-970x610.jpg',
-        estrellas: 4.5,
-        favorita: false,
-        usuario: {
-          nombre: 'Ana Gómez',
-          avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-        },
-      },
-      {
-        id: 2,
-        titulo: 'Ensalada de quinoa',
-        descripcion: 'Fresca, saludable y llena de sabor.',
-        imagen:
-          'https://www.vidactual.com/rcpmaker/wp-content/uploads/2019/06/Ensalada-de-quinoa-con-verduras.jpg',
-        estrellas: 4,
-        favorita: false,
-        usuario: {
-          nombre: 'Luis Torres',
-          avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-        },
-      },
-      {
-        id: 3,
-        titulo: 'Milanesa de pollo',
-        descripcion: 'Crujiente y jugosa, ideal para toda la familia.',
-        imagen:
-          'https://i.blogs.es/fda36a/como-hacer-milanesas-de-pollo-2-/1366_521.jpg',
-        estrellas: 5,
-        favorita: false,
-        usuario: {
-          nombre: 'Luis Torres',
-          avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-        },
-      },
-    ];
-
-    setTimeout(() => {
-      setRecetas(datosSimulados);
+  const fetchRecetas = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}`);
+      if (!response.ok) {
+        throw new Error('Error al obtener recetas');
+      }
+      const data: Receta[] = await response.json();
+      setRecetas(data);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudieron cargar las recetas del servidor.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecetas();
   }, []);
 
   const ordenarRecetas = (clave: OrdenClave) => {
@@ -113,7 +88,6 @@ export default function RecipesScreen() {
 
     const recetasOrdenadas = [...recetas].sort((a, b) => {
       let resultado = 0;
-
       switch (clave) {
         case 'populares':
           resultado = a.estrellas - b.estrellas;
@@ -125,7 +99,6 @@ export default function RecipesScreen() {
           resultado = a.usuario.nombre.localeCompare(b.usuario.nombre);
           break;
       }
-
       return nuevaDireccion ? resultado : -resultado;
     });
 
@@ -166,10 +139,10 @@ export default function RecipesScreen() {
       }
     >
       <View style={styles.card}>
-        <Image source={{ uri: item.imagen }} style={styles.image} />
+        <Image source={{ uri: item.fotoPrincipal }} style={styles.image} />
         <View style={styles.cardContent}>
-          <Text style={styles.title}>{item.titulo}</Text>
-          <Text style={styles.description}>{item.descripcion}</Text>
+          <Text style={styles.title}>{item.nombreReceta}</Text>
+          <Text style={styles.description}>{item.descripcionReceta}</Text>
           <View style={styles.infoRow}>
             <StarRating rating={item.estrellas} />
             <Ionicons
@@ -203,6 +176,8 @@ export default function RecipesScreen() {
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
+            refreshing={loading}
+            onRefresh={fetchRecetas}
           />
         </>
       )}

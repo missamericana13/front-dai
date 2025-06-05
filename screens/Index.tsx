@@ -4,6 +4,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Image } from 'expo-image';
 import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 type Receta = {
   id: number;
@@ -40,6 +42,23 @@ export default function HomeScreen() {
         .finally(() => setLoading(false));
     }
   }, [isConnected]);
+
+  useEffect(() => {
+  const checkRegistroExitoso = async () => {
+    try {
+      const value = await AsyncStorage.getItem('registro_exitoso');
+      if (value === '1') {
+        Alert.alert('¡Registro exitoso!', 'Tu cuenta fue creada correctamente.');
+        await AsyncStorage.removeItem('registro_exitoso');
+      }
+    } catch (error) {
+      console.error('Error al leer AsyncStorage', error);
+    }
+  };
+
+  checkRegistroExitoso();
+  }, []);
+
 
   if (!isConnected) {
     return (

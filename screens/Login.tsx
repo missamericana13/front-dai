@@ -1,7 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/authContext'; // Asegúrate que esta ruta es correcta
 
 export default function Login() {
@@ -13,7 +13,7 @@ export default function Login() {
   const handleLogin = async () => {
     setError('');
     try {
-      const res = await fetch('http://localhost:8080/api/usuarios/login', {
+      const res = await fetch('http://192.168.1.31:8080/api/usuarios/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -30,7 +30,7 @@ export default function Login() {
       // Guarda el token en AsyncStorage
       await AsyncStorage.setItem('token', data.token);
 
-      // Puedes guardar más datos si lo deseas
+      // Guarda los datos del usuario en el contexto de autenticación
       const userData = {
         displayName: data.usuario,
         email: email,
@@ -39,28 +39,11 @@ export default function Login() {
         nombre: data.nombre || '',
         photoURL: data.photoURL || ''
       };
+      login(userData); // Guarda los datos del usuario en el contexto de autenticación
 
-      Alert.alert(
-        '¿Guardar datos?',
-        '¿Deseás guardar tus datos para próximos ingresos?',
-        [
-          {
-            text: 'No',
-            onPress: () => {
-              login(userData);
-              router.replace('/drawer/(tabs)');
-            },
-          },
-          {
-            text: 'Sí',
-            onPress: () => {
-              // Aquí podrías guardar en SecureStore o AsyncStorage más info si quieres
-              login(userData);
-              router.replace('/drawer/(tabs)');
-            },
-          },
-        ]
-      );
+      // Redirige al usuario a la pantalla principal o al menú desplegable
+      router.replace('./drawer/(tabs)');
+
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     }
@@ -98,9 +81,7 @@ export default function Login() {
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push('/register')}>
-        <Text style={[styles.link, { marginTop: 16 }]}>
-          ¿No tenés cuenta? Registrate
-        </Text>
+        <Text style={[styles.link, { marginTop: 16 }]}>¿No tenés cuenta? Registrate</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push('/drawer')}>

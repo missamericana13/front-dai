@@ -39,6 +39,16 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "expo": {
+  "plugins": [
+    [
+      "expo-image-picker",
+      {
+        "photosPermission": "La app necesita acceso a tus fotos para subir el DNI."
+      }
+    ]
+  ]
+}
   }
 }

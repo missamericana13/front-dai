@@ -1,28 +1,53 @@
-// screens/PaymentRequired.tsx
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/authContext';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 
 export default function PaymentRequired() {
   const router = useRouter();
-  const { setUserRole } = useAuth();
 
   const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [securityCode, setSecurityCode] = useState('');
+  const [dniFrente, setDniFrente] = useState<string | null>(null);
+  const [dniFondo, setDniFondo] = useState<string | null>(null);
+  const [tramite, setTramite] = useState('');
+
+  // Limpia el prefijo del base64
+  const cleanBase64 = (dataUrl: string | null) => {
+    if (!dataUrl) return null;
+    return dataUrl.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+  };
+
+  const pickImage = async (setter: (img: string) => void) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets[0].base64) {
+      setter(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
 
   const handleNext = async () => {
-    // Aquí se simula el guardado del método de pago
-    await setUserRole('alumno');
-    router.push('./verifyidentity');
+    if (!cardNumber || !dniFrente || !dniFondo || !tramite) {
+      Alert.alert('Faltan datos', 'Por favor completá todos los campos.');
+      return;
+    }
+    // Guardar datos en AsyncStorage (solo base64 puro)
+    await AsyncStorage.setItem('alumno_numeroTarjeta', cardNumber);
+    await AsyncStorage.setItem('alumno_dniFrente', cleanBase64(dniFrente) ?? '');
+    await AsyncStorage.setItem('alumno_dniFondo', cleanBase64(dniFondo) ?? '');
+    await AsyncStorage.setItem('alumno_tramite', tramite);
+
+    router.push('/registerstep2');
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.title}>Método de Pago</Text>
+        <Text style={styles.title}>Datos de Alumno</Text>
 
         <TextInput
           style={styles.input}
@@ -32,38 +57,50 @@ export default function PaymentRequired() {
           onChangeText={setCardNumber}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre del titular"
-          value={cardName}
-          onChangeText={setCardName}
-        />
+        <TouchableOpacity
+          style={styles.imageButton}
+          onPress={() => pickImage((img) => setDniFrente(img))}
+        >
+          <Text style={styles.buttonText}>
+            {dniFrente ? 'DNI Frente seleccionado' : 'Seleccionar foto DNI Frente'}
+          </Text>
+        </TouchableOpacity>
+        {dniFrente && (
+          <Image
+            source={{ uri: dniFrente }}
+            style={{ width: 120, height: 80, alignSelf: 'center', marginBottom: 10, borderRadius: 8 }}
+          />
+        )}
+
+        <TouchableOpacity
+          style={styles.imageButton}
+          onPress={() => pickImage((img) => setDniFondo(img))}
+        >
+          <Text style={styles.buttonText}>
+            {dniFondo ? 'DNI Dorso seleccionado' : 'Seleccionar foto DNI Dorso'}
+          </Text>
+        </TouchableOpacity>
+        {dniFondo && (
+          <Image
+            source={{ uri: dniFondo }}
+            style={{ width: 120, height: 80, alignSelf: 'center', marginBottom: 10, borderRadius: 8 }}
+          />
+        )}
 
         <TextInput
           style={styles.input}
-          placeholder="Vencimiento (MM/AA)"
-          value={expiry}
-          onChangeText={setExpiry}
+          placeholder="N° de trámite"
+          value={tramite}
+          onChangeText={setTramite}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Código de seguridad"
-          keyboardType="numeric"
-          secureTextEntry
-          value={securityCode}
-          onChangeText={setSecurityCode}
-        />
-
-        <TouchableOpacity style={styles.button} onPress={() => router.push('./verifyidentity')}>
+        <TouchableOpacity style={styles.button} onPress={handleNext}>
           <Text style={styles.buttonText}>Siguiente</Text>
         </TouchableOpacity>
-
         <TouchableOpacity onPress={() => router.push('/drawer')}>
           <Text style={styles.link}>Volver</Text>
         </TouchableOpacity>
       </View>
-
       <Text style={styles.cc}>Saberes y Sabores</Text>
     </ScrollView>
   );
@@ -71,59 +108,59 @@ export default function PaymentRequired() {
 
 const styles = StyleSheet.create({
   scrollContainer: {
+    padding: 20,
     backgroundColor: '#2B5399',
     flexGrow: 1,
   },
   container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 64,
-    paddingHorizontal: 24,
+    paddingBottom: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 32,
-    color: '#ffffff',
+    color: '#EDE5D8',
+    marginBottom: 24,
+    textAlign: 'center',
+    marginTop: 24,
   },
   input: {
-    width: '100%',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
+    backgroundColor: 'white',
+    padding: 10,
     borderRadius: 8,
-    paddingHorizontal: 16,
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  imageButton: {
+    backgroundColor: '#EDE5D8',
     paddingVertical: 12,
-    marginBottom: 16,
-    textAlign: 'center',
+    borderRadius: 8,
+    marginTop: 10,
+    marginBottom: 5,
+    alignItems: 'center',
   },
   button: {
-    width: '100%',
     backgroundColor: '#EDE5D8',
+    paddingVertical: 14,
     borderRadius: 8,
-    paddingVertical: 12,
-    marginBottom: 16,
-    marginTop: 15,
+    marginTop: 20,
   },
   buttonText: {
     color: '#413E3E',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   link: {
-    fontSize: 14,
-    color: '#ffffff',
+    color: '#EDE5D8',
+    textAlign: 'center',
+    marginTop: 15,
     textDecorationLine: 'underline',
-    marginTop: 5,
   },
   cc: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#EDE5D8',
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 25,
-    fontFamily: 'aesthetic moments',
+    marginTop: 30,
+    fontSize: 18,
     fontStyle: 'italic',
   },
 });

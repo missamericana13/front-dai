@@ -10,8 +10,12 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+
+const DEFAULT_AVATAR = require('../assets/images/default-avatar.png');
 
 export default function RegisterStep2() {
     const router = useRouter();
@@ -24,15 +28,57 @@ export default function RegisterStep2() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [rol, setRol] = useState<'usuario' | 'alumno' | null>(null);
     const [codigo, setCodigo] = useState('');
+    const [avatar, setAvatar] = useState<string | null>(null);
+    const [alumnoData, setAlumnoData] = useState({
+        numeroTarjeta: '',
+        dniFrente: '',
+        dniFondo: '',
+        tramite: ''
+    });
 
     useEffect(() => {
         const loadData = async () => {
             setEmail((await AsyncStorage.getItem('register_email')) || '');
             setAlias((await AsyncStorage.getItem('register_alias')) || '');
             setCodigo((await AsyncStorage.getItem('register_code')) || '');
+            setNombre((await AsyncStorage.getItem('register_nombre')) || '');
+            setApellido((await AsyncStorage.getItem('register_apellido')) || '');
+            setDocumento((await AsyncStorage.getItem('register_documento')) || '');
+            setPassword((await AsyncStorage.getItem('register_password')) || '');
+            setConfirmPassword((await AsyncStorage.getItem('register_confirmPassword')) || '');
+            setRol((await AsyncStorage.getItem('register_rol')) as 'usuario' | 'alumno' | null);
+
+            // Leer datos de alumno si existen
+            const numeroTarjeta = await AsyncStorage.getItem('alumno_numeroTarjeta');
+            const dniFrente = await AsyncStorage.getItem('alumno_dniFrente');
+            const dniFondo = await AsyncStorage.getItem('alumno_dniFondo');
+            const tramite = await AsyncStorage.getItem('alumno_tramite');
+            setAlumnoData({
+                numeroTarjeta: numeroTarjeta || '',
+                dniFrente: dniFrente || '',
+                dniFondo: dniFondo || '',
+                tramite: tramite || ''
+            });
+
+            // Leer avatar si existe
+            const avatarSaved = await AsyncStorage.getItem('register_avatar');
+            setAvatar(avatarSaved || null);
         };
         loadData();
     }, []);
+
+    const pickAvatar = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            base64: true,
+            quality: 0.7,
+        });
+        if (!result.canceled && result.assets && result.assets[0].base64) {
+            const img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+            setAvatar(img);
+            await AsyncStorage.setItem('register_avatar', img);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!email || !alias || !codigo) {
@@ -48,6 +94,23 @@ export default function RegisterStep2() {
             return;
         }
 
+        // Si es alumno y faltan datos de alumno, redirigí a PaymentRequired
+        if (
+            rol === 'alumno' &&
+            (!alumnoData.numeroTarjeta || !alumnoData.dniFrente || !alumnoData.dniFondo || !alumnoData.tramite)
+        ) {
+            // Guardar datos básicos para no perderlos
+            await AsyncStorage.setItem('register_nombre', nombre);
+            await AsyncStorage.setItem('register_apellido', apellido);
+            await AsyncStorage.setItem('register_documento', documento);
+            await AsyncStorage.setItem('register_password', password);
+            await AsyncStorage.setItem('register_confirmPassword', confirmPassword);
+            await AsyncStorage.setItem('register_rol', rol);
+            if (avatar) await AsyncStorage.setItem('register_avatar', avatar);
+            router.push('/paymentrequired');
+            return;
+        }
+
         const registroRequest = {
             email,
             codigo,
@@ -57,42 +120,94 @@ export default function RegisterStep2() {
                 nickname: alias,
                 nombre: `${nombre} ${apellido}`,
                 contrasena: password,
-                rol: rol.toUpperCase()
+                rol: rol.toUpperCase(),
+                fotoPerfil: avatar // base64 o null
             },
             alumno: rol === 'alumno'
                 ? {
-                    numeroTarjeta: "123456789",
-                    dniFrente: "base64img",
-                    dniFondo: "base64img",
-                    tramite: "123456"
+                    numeroTarjeta: alumnoData.numeroTarjeta,
+                    dniFrente: alumnoData.dniFrente,
+                    dniFondo: alumnoData.dniFondo,
+                    tramite: alumnoData.tramite
                 }
                 : undefined
         };
 
         try {
-            const res = await fetch('http://localhost:8080/api/usuarios/registro/completar', {
+            const res = await fetch('http://192.168.1.31:8080/api/usuarios/registro/completar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(registroRequest)
             });
+
             const data = await res.text();
+
             if (!res.ok) {
                 Alert.alert('Error', data);
                 return;
             }
-            await AsyncStorage.multiRemove(['register_email', 'register_alias', 'register_code']);
+
+            await AsyncStorage.multiRemove([
+                'register_email',
+                'register_alias',
+                'register_code',
+                'register_nombre',
+                'register_apellido',
+                'register_documento',
+                'register_password',
+                'register_confirmPassword',
+                'register_rol',
+                'alumno_numeroTarjeta',
+                'alumno_dniFrente',
+                'alumno_dniFondo',
+                'alumno_tramite',
+                'register_avatar'
+            ]);
+
+            // Login automático
+            const loginRes = await fetch('http://192.168.1.31:8080/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: email,
+                    password
+                })
+            });
+
+            if (!loginRes.ok) {
+                const errorText = await loginRes.text();
+                console.log('Login falló con status:', loginRes.status);
+                console.log('Error:', errorText);
+
+                Alert.alert('Registro exitoso', 'Te registraste correctamente, pero hubo un problema al iniciar sesión automáticamente.');
+                router.replace('/'); // redirigir a login manual
+                return;
+            }
+
+            const loginData = await loginRes.json();
+
+            // Guardás token y datos de perfil
+            await AsyncStorage.setItem('token', loginData.token);
+            await AsyncStorage.setItem('user_email', email);
+            await AsyncStorage.setItem('user_alias', alias);
+
+            // Esperar un momento para asegurar guardado en AsyncStorage
+            await new Promise((r) => setTimeout(r, 500));
+
             Alert.alert(
-            '¡Registro exitoso!',
-            'Tu cuenta fue creada correctamente. Ahora podés iniciar sesión.',
-            [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        router.replace('/');
-                    },
-                },
-            ]
-        );
+                '¡Registro exitoso!',
+                'Tu cuenta fue creada correctamente. Ahora vas a ser redirigido al inicio.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: async () => {
+                            await AsyncStorage.setItem('registro_exitoso', '1');
+                            router.replace('/');
+                        }
+                    }
+                ]
+            );
+
         } catch (err) {
             Alert.alert('Error', 'No se pudo conectar al servidor.');
         }
@@ -106,6 +221,16 @@ export default function RegisterStep2() {
             <ScrollView contentContainerStyle={styles.scrollContainer}>
                 <View style={styles.container}>
                     <Text style={styles.title}>Completá tu registro</Text>
+
+                    <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar}>
+                        <Image
+                            source={avatar ? { uri: avatar } : DEFAULT_AVATAR}
+                            style={styles.avatar}
+                        />
+                        <Text style={styles.avatarText}>
+                            {avatar ? 'Cambiar avatar' : 'Elegir avatar'}
+                        </Text>
+                    </TouchableOpacity>
 
                     <Text style={styles.label}>Email</Text>
                     <TextInput value={email} editable={false} style={styles.inputDisabled} />
@@ -169,6 +294,22 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         textAlign: 'center',
         marginTop: 24,
+    },
+    avatarContainer: {
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    avatar: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: '#eee',
+        marginBottom: 8,
+    },
+    avatarText: {
+        color: '#2B5399',
+        textDecorationLine: 'underline',
+        fontSize: 14,
     },
     label: {
         fontSize: 16,

@@ -20,7 +20,7 @@ export default function ValidationScreen() {
         <TextInput
           style={styles.input}
           placeholder="Ingrese el código de validación"
-          keyboardType="numeric"
+          keyboardType="default"
           value={code}
           onChangeText={setCode}
         />

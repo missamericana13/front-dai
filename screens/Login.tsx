@@ -1,28 +1,43 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/authContext'; // Asegurate que esta ruta es correcta
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/authContext'; // Asegúrate que esta ruta es correcta
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth(); // 👈 usamos el contexto
+  const { login } = useAuth();
 
-  const handleLogin = () => {
-    const validEmail = 'test@email.com';
-    const validPassword = '1234';
+  const handleLogin = async () => {
+    setError('');
+    try {
+      const res = await fetch('http://localhost:8080/api/usuarios/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identificador: email,
+          contrasena: password
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data || 'Email o contraseña incorrectos');
+        return;
+      }
 
-    if (email === validEmail && password === validPassword) {
-      setError('');
+      // Guarda el token en AsyncStorage
+      await AsyncStorage.setItem('token', data.token);
 
-      // Simular usuario con datos
+      // Puedes guardar más datos si lo deseas
       const userData = {
-        displayName: 'Juan Pérez',
-        photoURL: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-        email: validEmail,
-        nombre: 'Juan',
-        apellido: 'Pérez',
+        displayName: data.usuario,
+        email: email,
+        rol: data.rol,
+        apellido: data.apellido || '',
+        nombre: data.nombre || '',
+        photoURL: data.photoURL || ''
       };
 
       Alert.alert(
@@ -32,22 +47,22 @@ export default function Login() {
           {
             text: 'No',
             onPress: () => {
-              login(userData); // 👈 actualiza el contexto
+              login(userData);
               router.replace('/drawer/(tabs)');
             },
           },
           {
             text: 'Sí',
             onPress: () => {
-              // Acá podrías guardar en SecureStore o AsyncStorage
-              login(userData); // 👈 actualiza el contexto
+              // Aquí podrías guardar en SecureStore o AsyncStorage más info si quieres
+              login(userData);
               router.replace('/drawer/(tabs)');
             },
           },
         ]
       );
-    } else {
-      setError('Email o contraseña incorrectos');
+    } catch (err) {
+      setError('No se pudo conectar al servidor.');
     }
   };
 

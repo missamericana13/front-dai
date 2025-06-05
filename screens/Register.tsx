@@ -1,10 +1,35 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [alias, setAlias] = useState('');
+
+  // Consulta real al backend si el alias existe
+  const checkAliasExists = async (alias: string) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
+      if (!res.ok) return false;
+      const sugerencias = await res.json();
+      // Si el alias original está en sugerencias, está en uso
+      return sugerencias.includes(alias);
+    } catch {
+      return false; // Si hay error, asumimos que no existe
+    }
+  };
+
+  // Obtiene sugerencias reales del backend
+  const generateAvailableAliases = async (alias: string) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  };
 
   const handleRegister = async () => {
     if (!email || !alias) {
@@ -14,46 +39,40 @@ export default function Register() {
 
     const aliasExists = await checkAliasExists(alias);
 
-    if (aliasExists) {
+    if (!aliasExists) {
+      try {
+        const res = await fetch(`http://localhost:8080/api/usuarios/registro/iniciar?email=${encodeURIComponent(email)}&alias=${encodeURIComponent(alias)}`, {
+          method: 'POST'
+        });
+        if (!res.ok) {
+          const error = await res.text();
+          Alert.alert('Error', error);
+          return;
+        }
+        // Guarda email y alias para el segundo paso
+        await AsyncStorage.setItem('register_email', email);
+        await AsyncStorage.setItem('register_alias', alias);
+
+        router.push('/verificationcode');
+      } catch {
+        Alert.alert('Error', 'No se pudo conectar al servidor.');
+      }
+    } else {
+      // Alias en uso, muestra sugerencias
       const suggestions = await generateAvailableAliases(alias);
 
       Alert.alert(
         'Alias en uso',
         'Ese alias ya está registrado. Probá con alguno de estos:',
         [
-          ...suggestions.map((s) => ({
+          ...suggestions.map((s: string) => ({
             text: s,
             onPress: () => setAlias(s),
           })),
           { text: 'Cancelar', style: 'cancel' },
         ]
       );
-      return;
     }
-
-    router.push({
-      pathname: './verificationcode',
-      params: { email, alias },
-    });
-  };
-
-  // Simula una consulta a la API
-  const checkAliasExists = async (alias: string) => {
-    const takenAliases = ['juanito', 'maria123', 'cocinero']; // Simulados
-    return takenAliases.includes(alias.toLowerCase());
-  };
-
-  // Genera sugerencias disponibles
-  const generateAvailableAliases = async (alias: string) => {
-    const candidates = [
-      `${alias}123`,
-      `${alias}_1`,
-      `${alias}.ok`,
-      `${alias}${Math.floor(Math.random() * 1000)}`,
-    ];
-
-    const taken = ['juanito123']; // Simulados
-    return candidates.filter((a) => !taken.includes(a));
   };
 
   return (

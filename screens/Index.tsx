@@ -29,7 +29,13 @@ export default function HomeScreen() {
       setLoading(true);
       fetch('http://localhost:8080/api/recetas/ultimas')
         .then(res => res.json())
-        .then(data => setRecetas(data))
+        .then(data => {
+          // Filtra elementos inválidos y asegura que cada receta tenga id
+          const safeData = Array.isArray(data)
+            ? data.filter((item) => item && typeof item.id !== 'undefined')
+            : [];
+          setRecetas(safeData);
+        })
         .catch(() => Alert.alert('Error', 'No se pudieron cargar las recetas'))
         .finally(() => setLoading(false));
     }
@@ -50,12 +56,12 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           data={recetas}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={(item, index) => (item?.id ? item.id.toString() : index.toString())}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Image source={{ uri: item.imagenUrl }} style={styles.image} />
               <ThemedText style={styles.recipeName}>{item.nombre}</ThemedText>
-              <ThemedText style={styles.recipeUser}>Por: {item.usuario.alias}</ThemedText>
+              <ThemedText style={styles.recipeUser}>Por: {item.usuario?.alias ?? 'Desconocido'}</ThemedText>
             </View>
           )}
         />

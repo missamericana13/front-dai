@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -11,46 +11,90 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useAuth } from '../context/authContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RegisterStep2() {
     const router = useRouter();
-    const { email, alias } = useLocalSearchParams<{ email: string; alias: string }>();
-    const { login, setUserRole } = useAuth();
-
+    const [email, setEmail] = useState('');
+    const [alias, setAlias] = useState('');
     const [nombre, setNombre] = useState('');
     const [apellido, setApellido] = useState('');
     const [documento, setDocumento] = useState('');
-    const [fechaNacimiento, setFechaNacimiento] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [rol, setRol] = useState<'usuario' | 'alumno' | null>(null);
+    const [codigo, setCodigo] = useState('');
+
+    useEffect(() => {
+        const loadData = async () => {
+            setEmail((await AsyncStorage.getItem('register_email')) || '');
+            setAlias((await AsyncStorage.getItem('register_alias')) || '');
+            setCodigo((await AsyncStorage.getItem('register_code')) || '');
+        };
+        loadData();
+    }, []);
 
     const handleSubmit = async () => {
-        if (!nombre || !apellido || !documento || !fechaNacimiento || !password || !confirmPassword || !rol) {
+        if (!email || !alias || !codigo) {
+            Alert.alert('Error', 'Faltan datos de email, alias o código. Volvé a iniciar el registro.');
+            return;
+        }
+        if (!nombre || !apellido || !documento || !password || !confirmPassword || !rol) {
             Alert.alert('Faltan datos', 'Por favor completá todos los campos.');
             return;
         }
-
         if (password !== confirmPassword) {
             Alert.alert('Error', 'Las contraseñas no coinciden.');
             return;
         }
 
-        const newUser = {
-            displayName: alias,
+        const registroRequest = {
             email,
-            photoURL: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+            codigo,
+            esAlumno: rol === 'alumno',
+            usuario: {
+                mail: email,
+                nickname: alias,
+                nombre: `${nombre} ${apellido}`,
+                contrasena: password,
+                rol: rol.toUpperCase()
+            },
+            alumno: rol === 'alumno'
+                ? {
+                    numeroTarjeta: "123456789",
+                    dniFrente: "base64img",
+                    dniFondo: "base64img",
+                    tramite: "123456"
+                }
+                : undefined
         };
 
-        await login(newUser);
-        await setUserRole(rol);
-
-        if (rol === 'usuario') {
-            Alert.alert('Registro exitoso', 'Tu cuenta fue creada correctamente.');
-            router.replace('/');
-        } else {
-            router.replace('./paymentrequired');
+        try {
+            const res = await fetch('http://localhost:8080/api/usuarios/registro/completar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(registroRequest)
+            });
+            const data = await res.text();
+            if (!res.ok) {
+                Alert.alert('Error', data);
+                return;
+            }
+            await AsyncStorage.multiRemove(['register_email', 'register_alias', 'register_code']);
+            Alert.alert(
+            '¡Registro exitoso!',
+            'Tu cuenta fue creada correctamente. Ahora podés iniciar sesión.',
+            [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        router.replace('/');
+                    },
+                },
+            ]
+        );
+        } catch (err) {
+            Alert.alert('Error', 'No se pudo conectar al servidor.');
         }
     };
 
@@ -77,9 +121,6 @@ export default function RegisterStep2() {
 
                     <Text style={styles.label}>N° de documento</Text>
                     <TextInput value={documento} onChangeText={setDocumento} style={styles.input} />
-
-                    <Text style={styles.label}>Fecha de nacimiento (DD/MM/AAAA)</Text>
-                    <TextInput value={fechaNacimiento} onChangeText={setFechaNacimiento} style={styles.input} />
 
                     <Text style={styles.label}>Contraseña</Text>
                     <TextInput value={password} onChangeText={setPassword} secureTextEntry style={styles.input} />

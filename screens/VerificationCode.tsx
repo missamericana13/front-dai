@@ -2,13 +2,14 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import { useState } from 'react';
 import { router } from 'expo-router';
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ValidationScreen() {
   const [code, setCode] = useState('');
 
-  const handleConfirm = () => {
-    // Aquí podrías validar el código si es necesario
-    router.push('./registerstep2');
+  const handleConfirm = async () => {
+    await AsyncStorage.setItem('register_code', code);
+    router.push('/registerstep2');
   };
 
   return (

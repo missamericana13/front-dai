@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Image, TextInput, TouchableOpacity,
-  ScrollView, KeyboardAvoidingView, Platform, Modal, Pressable
+  ScrollView, KeyboardAvoidingView, Platform, Modal, Pressable, Alert
 } from 'react-native';
 import { useAuth } from '../context/authContext';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MyProfile() {
   const { user } = useAuth();
@@ -12,26 +14,28 @@ export default function MyProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.displayName || '');
-  const [alias, setAlias] = useState('');
+  const [alias, setAlias] = useState(user?.alias || '');
   const [extra, setExtra] = useState('');
-  const [role, setRole] = useState<'alumno' | 'usuario'>('usuario');
-  const [previousRole, setPreviousRole] = useState<'alumno' | 'usuario'>('usuario');
+  const [role, setRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() || 'usuario');
+  const [previousRole, setPreviousRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() || 'usuario');
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
-  useEffect(() => {
-  // Usamos el rol real del contexto para inicializar el estado
-  if (role === 'alumno') {
-    setPaymentMethod('Visa **** 4242'); // Placeholder temporal
-    setRole('alumno');
-    setPreviousRole('alumno');
-  } else {
-    setPaymentMethod(null);
-    setRole('usuario');
-    setPreviousRole('usuario');
-  }
-}, [role]);
+  // Avatar
+  const [avatar, setAvatar] = useState(user?.photoURL || '');
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (role === 'alumno') {
+      setPaymentMethod('Visa **** 4242'); // Placeholder temporal, podés cargar el método real aquí
+      setRole('alumno');
+      setPreviousRole('alumno');
+    } else {
+      setPaymentMethod(null);
+      setRole('usuario');
+      setPreviousRole('usuario');
+    }
+  }, [role]);
 
   if (!user) {
     return (
@@ -41,11 +45,72 @@ export default function MyProfile() {
     );
   }
 
+  // Elegir nueva imagen de perfil
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets[0].base64) {
+      setAvatar(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      setAvatarBase64(result.assets[0].base64); // solo base64 puro
+    }
+  };
+
   const handleEdit = () => setIsEditing(true);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    setPreviousRole(role);
+  // Guardar cambios en el backend
+  const handleSave = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'No hay token de sesión');
+        return;
+      }
+      // Solo enviar los campos que cambiaron
+      const updateData: any = {};
+      if (name !== user.displayName) updateData.nombre = name;
+      if (role !== user.rol?.toLowerCase()) updateData.rol = role;
+      if (avatarBase64) updateData.avatar = avatarBase64;
+      if (role === 'alumno' && paymentMethod) updateData.metodoPago = paymentMethod;
+
+      if (Object.keys(updateData).length === 0) {
+        setIsEditing(false);
+        return;
+      }
+
+      const res = await fetch(`http://192.168.1.31:8080/api/usuarios/${user.id}/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (res.ok) {
+        setIsEditing(false);
+        setPreviousRole(role);
+        setAvatarBase64(null);
+        Alert.alert(
+          'Cambios aplicados',
+          'Tu perfil fue actualizado correctamente.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/'),
+            },
+          ]
+        );
+        // Opcional: refrescar datos de usuario en el contexto
+      } else {
+        const msg = await res.text();
+        Alert.alert('Error al actualizar', msg);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo conectar al servidor.');
+    }
   };
 
   const toggleRoleModal = () => setShowRoleModal(!showRoleModal);
@@ -58,11 +123,11 @@ export default function MyProfile() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.avatarContainer}>
           <Image
-            source={{ uri: user.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
+            source={{ uri: avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
             style={styles.avatar}
           />
           {isEditing && (
-            <TouchableOpacity>
+            <TouchableOpacity onPress={pickAvatar}>
               <Text style={styles.changePhoto}>Cambiar imagen</Text>
             </TouchableOpacity>
           )}
@@ -84,38 +149,38 @@ export default function MyProfile() {
             style={[styles.input, !isEditing && styles.disabledInput]}
             value={alias}
             onChangeText={setAlias}
-            editable={isEditing}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Información adicional</Text>
-          <TextInput
-            style={[styles.input, !isEditing && styles.disabledInput]}
-            value={extra}
-            onChangeText={setExtra}
-            editable={isEditing}
+            editable={false} // No editable por seguridad
           />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Rol</Text>
           <TouchableOpacity
-            onPress={isEditing ? toggleRoleModal : undefined}
-            style={[styles.input, styles.roleSelector, !isEditing && styles.disabledInput]}
+            // Si el rol es alumno, no permite abrir el modal
+            onPress={isEditing && role !== 'alumno' ? toggleRoleModal : undefined}
+            style={[
+              styles.input,
+              styles.roleSelector,
+              (!isEditing || role === 'alumno') && styles.disabledInput
+            ]}
+            activeOpacity={role === 'alumno' ? 1 : 0.2}
           >
-            <Text style={{ color: isEditing ? '#000' : '#888' }}>
+            <Text style={{ color: isEditing && role !== 'alumno' ? '#000' : '#888' }}>
               {role === 'usuario' ? 'Usuario' : 'Alumno'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {role === 'alumno' && paymentMethod && (
+        {role === 'alumno' && (
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Método de pago</Text>
-            <View style={[styles.input, styles.disabledInput]}>
-              <Text>{paymentMethod}</Text>
-            </View>
+            <TextInput
+              style={[styles.input, isEditing ? null : styles.disabledInput]}
+              value={paymentMethod || ''}
+              onChangeText={setPaymentMethod}
+              editable={isEditing}
+              placeholder="Ingresá tu método de pago"
+            />
           </View>
         )}
 
@@ -133,7 +198,7 @@ export default function MyProfile() {
                 setRole('alumno');
                 toggleRoleModal();
                 if (!paymentMethod && previousRole === 'usuario') {
-                  router.push('/paymentrequired'); // ✅ redirección inmediata al seleccionar 'alumno'
+                  router.push('/paymentrequired');
                 }
               }}>
                 <Text style={styles.modalOption}>Alumno</Text>

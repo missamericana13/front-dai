@@ -3,36 +3,65 @@ import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import React, { useState, useEffect } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { useAuth } from '../../context/authContext';
 
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+
+// Utilidad para convertir blob a base64 (solo para React Native)
+const blobToBase64 = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // El resultado es "data:image/jpeg;base64,...."
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  // Usá avatarBase64 para RN, avatarUrl para web
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
+  if (user?.id) {
     const fetchAvatar = async () => {
-      if (user?.id) {
-        try {
-          const res = await fetch(`http://192.168.1.31:8080/api/usuarios/${user.id}/avatar`);
-          if (res.ok) {
-            const blob = await res.blob();
+      try {
+        const res = await fetch(`http://192.168.1.31:8080/api/usuarios/${user.id}/avatar`);
+        if (res.ok) {
+          const blob = await res.blob();
+          if (Platform.OS === 'web') {
             const url = URL.createObjectURL(blob);
             setAvatarUrl(url);
+            setAvatarBase64(null);
           } else {
+            const base64 = await blobToBase64(blob);
+            setAvatarBase64(base64);
             setAvatarUrl(null);
           }
-        } catch {
+        } else {
+          setAvatarBase64(null);
           setAvatarUrl(null);
         }
+      } catch {
+        setAvatarBase64(null);
+        setAvatarUrl(null);
       }
     };
     fetchAvatar();
-  }, [user?.id]);
+  } else {
+    // Si no hay usuario, limpiar el avatar
+    setAvatarBase64(null);
+    setAvatarUrl(null);
+  }
+}, [user?.id]);
 
   const [recetasOpen, setRecetasOpen] = useState(false);
   const [cursosOpen, setCursosOpen] = useState(false);
@@ -47,8 +76,10 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           <View style={styles.profileRow}>
             <Image
               source={
-                user?.photoURL
-                  ? { uri: user.photoURL } // base64: 'data:image/jpeg;base64,...'
+                avatarBase64
+                  ? { uri: `data:image/jpeg;base64,${avatarBase64}` }
+                  : avatarUrl
+                  ? { uri: avatarUrl }
                   : { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }
               }
               style={styles.avatar}
@@ -166,7 +197,10 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             label="Cerrar sesión"
             labelStyle={[styles.menuText, { color: 'red' }]}
             icon={({ color, size }) => <Ionicons name="log-out" color={'red'} size={size ?? 24} />}
-            onPress={logout}
+            onPress={async () => {
+              await logout();
+              // El Drawer se actualizará automáticamente y mostrará la imagen default
+            }}
           />
         )}
       </View>

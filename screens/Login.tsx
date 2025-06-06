@@ -40,7 +40,9 @@ export default function Login() {
         alias: data.alias || '', 
         apellido: data.apellido || '',
         nombre: data.nombre || '',
-        photoURL: data.photoURL || ''
+        photoURL: data.avatar ? (
+          data.avatar.startsWith('data:') ? data.avatar : `data:image/jpeg;base64,${data.avatar}`
+        ) : ''
       };
       login(userData);
 

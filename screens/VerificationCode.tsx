@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import React from 'react';
@@ -6,10 +6,37 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ValidationScreen() {
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
-    await AsyncStorage.setItem('register_code', code);
-    router.push('/registerstep2');
+    if (!code) {
+      Alert.alert('Error', 'Por favor ingresá el código de validación.');
+      return;
+    }
+    setLoading(true);
+
+    // Recupera el email y alias del registro
+    const email = await AsyncStorage.getItem('register_email');
+    const alias = await AsyncStorage.getItem('register_alias');
+
+    try {
+      // Verifica el código con el backend
+      const res = await fetch(
+        `http://192.168.1.31:8080/api/usuarios/registro/verificar-codigo?email=${encodeURIComponent(email ?? '')}&alias=${encodeURIComponent(alias ?? '')}&codigo=${encodeURIComponent(code)}`,
+        { method: 'POST' }
+      );
+      if (!res.ok) {
+        setLoading(false);
+        Alert.alert('Código incorrecto', 'El código ingresado es incorrecto o expiró.');
+        return;
+      }
+      await AsyncStorage.setItem('register_code', code);
+      setLoading(false);
+      router.push('/registerstep2');
+    } catch {
+      setLoading(false);
+      Alert.alert('Error', 'No se pudo conectar al servidor.');
+    }
   };
 
   return (
@@ -25,8 +52,8 @@ export default function ValidationScreen() {
           onChangeText={setCode}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleConfirm}>
-          <Text style={styles.buttonText}>Confirmar</Text>
+        <TouchableOpacity style={styles.button} onPress={handleConfirm} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Verificando...' : 'Confirmar'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/drawer')}>

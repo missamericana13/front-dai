@@ -6,8 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function Register() {
   const [email, setEmail] = useState('');
   const [alias, setAlias] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Limpiar datos temporales de registro al entrar a la pantalla
   useEffect(() => {
     AsyncStorage.multiRemove([
       'register_email',
@@ -28,25 +28,44 @@ export default function Register() {
     setAlias('');
   }, []);
 
-  // Consulta real al backend si el alias existe
+  // Devuelve true si el mail ya existe y está registrado
+  const checkEmailExists = async (email: string) => {
+    try {
+      const res = await fetch(`http://192.168.1.31:8080/api/usuarios/existe-email?email=${encodeURIComponent(email)}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data?.registrado === true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Devuelve true si el alias ya existe
   const checkAliasExists = async (alias: string) => {
     try {
       const res = await fetch(`http://192.168.1.31:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
       if (!res.ok) return false;
       const sugerencias = await res.json();
-      // Si el alias original está en sugerencias, está en uso
       return sugerencias.includes(alias);
     } catch {
-      return false; // Si hay error, asumimos que no existe
+      return false;
     }
   };
 
-  // Obtiene sugerencias reales del backend
+  // Devuelve sugerencias aleatorias y que no existan
   const generateAvailableAliases = async (alias: string) => {
     try {
       const res = await fetch(`http://192.168.1.31:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
       if (!res.ok) return [];
-      return await res.json();
+      let sugerencias = await res.json();
+      // Filtra el alias original y los que ya existen (por seguridad)
+      sugerencias = sugerencias.filter((s: string) => s !== alias);
+      // Mezcla aleatoriamente y toma hasta 5
+      for (let i = sugerencias.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [sugerencias[i], sugerencias[j]] = [sugerencias[j], sugerencias[i]];
+      }
+      return sugerencias.slice(0, 5);
     } catch {
       return [];
     }
@@ -58,33 +77,27 @@ export default function Register() {
       return;
     }
 
-    const aliasExists = await checkAliasExists(alias);
+    setLoading(true);
 
-    if (!aliasExists) {
-      // Navega inmediatamente
-      router.push('/verificationcode');
-      try {
-        const res = await fetch(`http://192.168.1.31:8080/api/usuarios/registro/iniciar?email=${encodeURIComponent(email)}&alias=${encodeURIComponent(alias)}`, {
-          method: 'POST'
-        });
-        if (!res.ok) {
-          const error = await res.text();
-          Alert.alert('Error', error);
-          return;
-        }
-        // Guarda email y alias para el segundo paso
-        await AsyncStorage.setItem('register_email', email);
-        await AsyncStorage.setItem('register_alias', alias);
-      } catch {
-        Alert.alert('Error', 'No se pudo conectar al servidor.');
-      }
-    } else {
-      // Alias en uso, muestra sugerencias
+    // 1. Chequea si el mail ya está registrado
+    if (await checkEmailExists(email)) {
+      setLoading(false);
+      Alert.alert(
+        'Email en uso',
+        'Ese email ya está registrado. Si olvidaste tu clave podés recuperarla desde la pantalla de inicio de sesión.'
+      );
+      return;
+    }
+
+    // 2. Chequea si el alias ya está registrado
+    if (await checkAliasExists(alias)) {
+      setLoading(false);
       const suggestions = await generateAvailableAliases(alias);
-
       Alert.alert(
         'Alias en uso',
-        'Ese alias ya está registrado. Probá con alguno de estos:',
+        suggestions.length > 0
+          ? 'Ese alias ya está registrado. Probá con alguno de estos:'
+          : 'Ese alias ya está registrado. Probá con otro.',
         [
           ...suggestions.map((s: string) => ({
             text: s,
@@ -93,6 +106,28 @@ export default function Register() {
           { text: 'Cancelar', style: 'cancel' },
         ]
       );
+      return;
+    }
+
+    // 3. Intenta iniciar el registro
+    try {
+      const res = await fetch(
+        `http://192.168.1.31:8080/api/usuarios/registro/iniciar?email=${encodeURIComponent(email)}&alias=${encodeURIComponent(alias)}`,
+        { method: 'POST' }
+      );
+      if (!res.ok) {
+        const error = await res.text();
+        setLoading(false);
+        Alert.alert('Error', error);
+        return;
+      }
+      await AsyncStorage.setItem('register_email', email);
+      await AsyncStorage.setItem('register_alias', alias);
+      setLoading(false);
+      router.push('/verificationcode');
+    } catch {
+      setLoading(false);
+      Alert.alert('Error', 'No se pudo conectar al servidor.');
     }
   };
 
@@ -107,6 +142,7 @@ export default function Register() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          autoCapitalize="none"
         />
 
         <TextInput
@@ -114,10 +150,11 @@ export default function Register() {
           placeholder="Alias"
           value={alias}
           onChangeText={setAlias}
+          autoCapitalize="none"
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Confirmar</Text>
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Procesando...' : 'Confirmar'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/drawer')}>

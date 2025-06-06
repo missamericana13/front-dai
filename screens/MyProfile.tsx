@@ -15,7 +15,6 @@ export default function MyProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.displayName || '');
   const [alias, setAlias] = useState(user?.alias || '');
-  const [extra, setExtra] = useState('');
   const [role, setRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() || 'usuario');
   const [previousRole, setPreviousRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() || 'usuario');
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
@@ -75,6 +74,20 @@ export default function MyProfile() {
       if (avatarBase64) updateData.avatar = avatarBase64;
       if (role === 'alumno' && paymentMethod) updateData.metodoPago = paymentMethod;
 
+      // Si el usuario es alumno, agregar datos extra si existen en AsyncStorage
+      if (role === 'alumno') {
+        const numeroTarjeta = await AsyncStorage.getItem('alumno_numeroTarjeta');
+        const dniFrente = await AsyncStorage.getItem('alumno_dniFrente');
+        const dniFondo = await AsyncStorage.getItem('alumno_dniFondo');
+        const tramite = await AsyncStorage.getItem('alumno_tramite');
+        if (numeroTarjeta && dniFrente && dniFondo && tramite) {
+          updateData.numeroTarjeta = numeroTarjeta;
+          updateData.dniFrente = dniFrente;
+          updateData.dniFondo = dniFondo;
+          updateData.tramite = tramite;
+        }
+      }
+
       if (Object.keys(updateData).length === 0) {
         setIsEditing(false);
         return;
@@ -90,6 +103,13 @@ export default function MyProfile() {
       });
 
       if (res.ok) {
+        // Limpia los datos temporales de alumno si existen
+        await AsyncStorage.multiRemove([
+          'alumno_numeroTarjeta',
+          'alumno_dniFrente',
+          'alumno_dniFondo',
+          'alumno_tramite'
+        ]);
         setIsEditing(false);
         setPreviousRole(role);
         setAvatarBase64(null);
@@ -103,7 +123,6 @@ export default function MyProfile() {
             },
           ]
         );
-        // Opcional: refrescar datos de usuario en el contexto
       } else {
         const msg = await res.text();
         Alert.alert('Error al actualizar', msg);
@@ -114,6 +133,32 @@ export default function MyProfile() {
   };
 
   const toggleRoleModal = () => setShowRoleModal(!showRoleModal);
+
+  const handleAlumnoPress = () => {
+    Alert.alert(
+      'Atención',
+      'Luego de cambiar de Usuario a Alumno no podrás volver a ser Usuario. ¿Deseás continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: async () => {
+            setRole('alumno');
+            toggleRoleModal();
+            // Si faltan datos de alumno, redirige a completar
+            const numeroTarjeta = await AsyncStorage.getItem('alumno_numeroTarjeta');
+            const dniFrente = await AsyncStorage.getItem('alumno_dniFrente');
+            const dniFondo = await AsyncStorage.getItem('alumno_dniFondo');
+            const tramite = await AsyncStorage.getItem('alumno_tramite');
+            if (!numeroTarjeta || !dniFrente || !dniFondo || !tramite) {
+              router.push('/paymentrequired');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -194,13 +239,7 @@ export default function MyProfile() {
               }}>
                 <Text style={styles.modalOption}>Usuario</Text>
               </Pressable>
-              <Pressable onPress={() => {
-                setRole('alumno');
-                toggleRoleModal();
-                if (!paymentMethod && previousRole === 'usuario') {
-                  router.push('/paymentrequired');
-                }
-              }}>
+              <Pressable onPress={handleAlumnoPress}>
                 <Text style={styles.modalOption}>Alumno</Text>
               </Pressable>
               <Pressable onPress={toggleRoleModal}>

@@ -26,7 +26,7 @@ export default function RegisterStep2() {
     const [documento, setDocumento] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [rol, setRol] = useState<'usuario' | 'alumno' | null>(null);
+    const [rol, setRol] = useState('usuario');
     const [codigo, setCodigo] = useState('');
     const [avatar, setAvatar] = useState<string | null>(null);
     const [alumnoData, setAlumnoData] = useState({
@@ -37,6 +37,14 @@ export default function RegisterStep2() {
     });
 
     useEffect(() => {
+        // PEDIR PERMISO PARA GALERÍA AL INICIAR
+        (async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permiso requerido', 'Necesitás dar permiso para acceder a tus fotos.');
+            }
+        })();
+
         const loadData = async () => {
             setEmail((await AsyncStorage.getItem('register_email')) || '');
             setAlias((await AsyncStorage.getItem('register_alias')) || '');
@@ -46,7 +54,7 @@ export default function RegisterStep2() {
             setDocumento((await AsyncStorage.getItem('register_documento')) || '');
             setPassword((await AsyncStorage.getItem('register_password')) || '');
             setConfirmPassword((await AsyncStorage.getItem('register_confirmPassword')) || '');
-            setRol((await AsyncStorage.getItem('register_rol')) as 'usuario' | 'alumno' | null);
+            setRol((await AsyncStorage.getItem('register_rol')) || 'usuario');
 
             // Leer datos de alumno si existen
             const numeroTarjeta = await AsyncStorage.getItem('alumno_numeroTarjeta');
@@ -73,10 +81,12 @@ export default function RegisterStep2() {
             base64: true,
             quality: 0.7,
         });
+        console.log('RESULT PICKER:', result);
         if (!result.canceled && result.assets && result.assets[0].base64) {
-            const img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            setAvatar(img);
-            await AsyncStorage.setItem('register_avatar', img);
+            setAvatar(result.assets[0].base64);
+            await AsyncStorage.setItem('register_avatar', result.assets[0].base64);
+        } else {
+            Alert.alert('Error', 'No se pudo obtener la imagen en base64.');
         }
     };
 
@@ -94,12 +104,10 @@ export default function RegisterStep2() {
             return;
         }
 
-        // Si es alumno y faltan datos de alumno, redirigí a PaymentRequired
         if (
             rol === 'alumno' &&
             (!alumnoData.numeroTarjeta || !alumnoData.dniFrente || !alumnoData.dniFondo || !alumnoData.tramite)
         ) {
-            // Guardar datos básicos para no perderlos
             await AsyncStorage.setItem('register_nombre', nombre);
             await AsyncStorage.setItem('register_apellido', apellido);
             await AsyncStorage.setItem('register_documento', documento);
@@ -121,7 +129,7 @@ export default function RegisterStep2() {
                 nombre: `${nombre} ${apellido}`,
                 contrasena: password,
                 rol: rol.toUpperCase(),
-                fotoPerfil: avatar // base64 o null
+                avatar: avatar // base64 puro o null
             },
             alumno: rol === 'alumno'
                 ? {
@@ -132,6 +140,9 @@ export default function RegisterStep2() {
                 }
                 : undefined
         };
+
+        // LOG para depuración
+        console.log('RegistroRequest:', JSON.stringify(registroRequest, null, 2));
 
         try {
             const res = await fetch('http://192.168.1.31:8080/api/usuarios/registro/completar', {
@@ -186,12 +197,10 @@ export default function RegisterStep2() {
 
             const loginData = await loginRes.json();
 
-            // Guardás token y datos de perfil
             await AsyncStorage.setItem('token', loginData.token);
             await AsyncStorage.setItem('user_email', email);
             await AsyncStorage.setItem('user_alias', alias);
 
-            // Esperar un momento para asegurar guardado en AsyncStorage
             await new Promise((r) => setTimeout(r, 500));
 
             Alert.alert(
@@ -224,7 +233,7 @@ export default function RegisterStep2() {
 
                     <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar}>
                         <Image
-                            source={avatar ? { uri: avatar } : DEFAULT_AVATAR}
+                            source={avatar ? { uri: `data:image/jpeg;base64,${avatar}` } : DEFAULT_AVATAR}
                             style={styles.avatar}
                         />
                         <Text style={styles.avatarText}>

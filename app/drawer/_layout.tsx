@@ -2,13 +2,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/authContext';
 
-function CustomDrawerContent(props: any) {
+import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (user?.id) {
+        try {
+          const res = await fetch(`http://192.168.1.31:8080/api/usuarios/${user.id}/avatar`);
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            setAvatarUrl(url);
+          } else {
+            setAvatarUrl(null);
+          }
+        } catch {
+          setAvatarUrl(null);
+        }
+      }
+    };
+    fetchAvatar();
+  }, [user?.id]);
 
   const [recetasOpen, setRecetasOpen] = useState(false);
   const [cursosOpen, setCursosOpen] = useState(false);
@@ -22,7 +46,11 @@ function CustomDrawerContent(props: any) {
         <View>
           <View style={styles.profileRow}>
             <Image
-              source={{ uri: user?.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
+              source={
+                user?.photoURL
+                  ? { uri: user.photoURL } // base64: 'data:image/jpeg;base64,...'
+                  : { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }
+              }
               style={styles.avatar}
             />
             <Text style={styles.invited}>

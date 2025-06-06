@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/authContext'; // Asegúrate que esta ruta es correcta
+import { useAuth } from '../context/authContext'; // Ajusta la ruta si es necesario
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -27,23 +27,24 @@ export default function Login() {
         return;
       }
 
-      // Guarda el token en AsyncStorage
+      // Guarda el token y el id en AsyncStorage
       await AsyncStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('user_id', data.id?.toString() || '');
 
       // Guarda los datos del usuario en el contexto de autenticación
       const userData = {
         displayName: data.usuario,
         email: email,
         rol: data.rol,
+        id: data.id,
+        alias: data.alias || '', 
         apellido: data.apellido || '',
         nombre: data.nombre || '',
         photoURL: data.photoURL || ''
       };
-      login(userData); // Guarda los datos del usuario en el contexto de autenticación
+      login(userData);
 
-      // Redirige al usuario a la pantalla principal o al menú desplegable
       router.replace('./drawer/(tabs)');
-
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     }

@@ -2,17 +2,36 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 
+const API_BASE_URL = 'http://192.168.1.31:8080/api/usuarios/recuperar/solicitar';
+
 export default function RecoverPassword() {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRecover = () => {
+  const handleRecover = async () => {
     if (!email) {
       Alert.alert('Campo vacío', 'Por favor ingresá tu email.');
       return;
     }
-
-    // Acá luego se llama la API para enviar código
-    router.push({ pathname: './resetpasswordcode', params: { email } });
+    setLoading(true);
+    try {
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `email=${encodeURIComponent(email)}`,
+      });
+      const text = await response.text();
+      if (response.ok) {
+        Alert.alert('Éxito', 'Te enviamos un código a tu correo.');
+        router.push({ pathname: './resetpasswordcode', params: { email } });
+      } else {
+        Alert.alert('Error', text || 'No se pudo enviar el código.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo conectar con el servidor.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,10 +45,11 @@ export default function RecoverPassword() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          autoCapitalize="none"
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleRecover}>
-          <Text style={styles.buttonText}>Enviar código</Text>
+        <TouchableOpacity style={styles.button} onPress={handleRecover} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar código'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/')}>

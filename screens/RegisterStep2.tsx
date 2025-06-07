@@ -190,8 +190,8 @@ export default function RegisterStep2() {
                 console.log('Login falló con status:', loginRes.status);
                 console.log('Error:', errorText);
 
-                Alert.alert('Registro exitoso', 'Te registraste correctamente, pero hubo un problema al iniciar sesión automáticamente.');
-                router.replace('/'); // redirigir a login manual
+                Alert.alert('Registro exitoso', 'Te registraste correctamente.');
+                router.replace('/login'); // redirigir a login manual
                 return;
             }
 

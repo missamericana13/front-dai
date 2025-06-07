@@ -2,18 +2,33 @@ import { useLocalSearchParams, router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const API_BASE_URL = 'http://192.168.1.31:8080/api/usuarios/recuperar/verificar-codigo';
+
 export default function ResetPasswordCode() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!code) {
       Alert.alert('Código vacío', 'Ingresá el código que te enviamos por mail.');
       return;
     }
-
-    // Acá se verificaría el código
-    router.push({ pathname: './newpassword', params: { email } });
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ email, codigo: code });
+      const response = await fetch(`${API_BASE_URL}?${params.toString()}`);
+      if (response.ok) {
+        router.push({ pathname: './newpassword', params: { email, code } });
+      } else {
+        const text = await response.text();
+        Alert.alert('Código incorrecto', text || 'El código es inválido o expiró.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo conectar con el servidor.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,13 +40,13 @@ export default function ResetPasswordCode() {
         <TextInput
           style={styles.input}
           placeholder="Código"
-          keyboardType="numeric"
+          keyboardType="default"
           value={code}
           onChangeText={setCode}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleVerify}>
-          <Text style={styles.buttonText}>Confirmar</Text>
+        <TouchableOpacity style={styles.button} onPress={handleVerify} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Verificando...' : 'Confirmar'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/')}>

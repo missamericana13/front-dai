@@ -2,26 +2,48 @@ import { useLocalSearchParams, router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const API_BASE_URL = 'http://192.168.1.31:8080/api/usuarios/recuperar/completar';
+
 export default function NewPassword() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, code } = useLocalSearchParams<{ email: string, code: string }>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!password || !confirmPassword) {
       Alert.alert('Campos incompletos', 'Por favor completá ambos campos.');
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Contraseñas no coinciden', 'Asegurate de que ambas contraseñas sean iguales.');
       return;
     }
-
-    // Acá luego se llamaría a la API para actualizar la contraseña
-    Alert.alert('Contraseña actualizada', 'Ahora podés iniciar sesión con tu nueva contraseña.', [
-      { text: 'OK', onPress: () => router.push('/login') },
-    ]);
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        email,
+        codigo: code,
+        nuevaContrasena: password,
+      });
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+      const text = await response.text();
+      if (response.ok) {
+        Alert.alert('Contraseña actualizada', 'Ahora podés iniciar sesión con tu nueva contraseña.', [
+          { text: 'OK', onPress: () => router.push('/login') },
+        ]);
+      } else {
+        Alert.alert('Error', text || 'No se pudo actualizar la contraseña.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo conectar con el servidor.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,8 +68,8 @@ export default function NewPassword() {
           onChangeText={setConfirmPassword}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleUpdatePassword}>
-          <Text style={styles.buttonText}>Actualizar contraseña</Text>
+        <TouchableOpacity style={styles.button} onPress={handleUpdatePassword} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Actualizando...' : 'Actualizar contraseña'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/')}>

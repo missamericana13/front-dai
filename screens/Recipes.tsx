@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -13,61 +14,62 @@ import {
   Alert,
 } from 'react-native';
 
-const API_BASE_URL = 'http://192.168.1.31:8080/api/recetas/aprobadas'; // ← CAMBIAR por tu URL real
-
-const StarRating = ({ rating }: { rating: number }) => {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating - fullStars >= 0.5;
-  const totalStars = 5;
-
-  return (
-    <View style={{ flexDirection: 'row' }}>
-      {Array.from({ length: fullStars }).map((_, i) => (
-        <Ionicons key={`full-${i}`} name="star" size={16} color="#F5A623" />
-      ))}
-      {hasHalfStar && (
-        <Ionicons name="star-half" size={16} color="#F5A623" />
-      )}
-      {Array.from({ length: totalStars - fullStars - (hasHalfStar ? 1 : 0) }).map(
-        (_, i) => (
-          <Ionicons key={`empty-${i}`} name="star-outline" size={16} color="#F5A623" />
-        )
-      )}
-    </View>
-  );
-};
+const API_BASE_URL = 'http://192.168.1.31:8080/api/recetas/aprobadas';
 
 interface Usuario {
   nombre: string;
-  avatar: string;
+  avatar?: string; // base64
+}
+
+interface TipoReceta {
+  nombre?: string;
 }
 
 interface Receta {
-  id: number;
+  idReceta: number;
   nombreReceta: string;
-  descripcionReceta: string;
-  fotoPrincipal: string;
-  estrellas: number;
+  descripcionReceta?: string;
+  fotoPrincipal?: string; // base64
   usuario: Usuario;
-  favorita: boolean;
+  porciones?: number;
+  cantidadPersonas?: number;
+  tipoReceta?: TipoReceta;
+  fechaCreacion?: string;
+  ingredientes?: any[];
 }
 
-type OrdenClave = 'populares' | 'antiguedad' | 'usuario';
+type OrdenClave = 'antiguedad' | 'usuario';
 
 export default function RecipesScreen() {
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orden, setOrden] = useState<OrdenClave>('populares');
+  const [orden, setOrden] = useState<OrdenClave>('antiguedad');
   const [ascendente, setAscendente] = useState<boolean>(false);
 
   const fetchRecetas = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}`);
-      if (!response.ok) {
-        throw new Error('Error al obtener recetas');
-      }
-      const data: Receta[] = await response.json();
+  try {
+    setLoading(true);
+    const token = await AsyncStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error('Error al obtener recetas');
+    let data: Receta[] = await response.json();
+
+      // Convertir imágenes y avatar a base64 URI o usar placeholder online
+      data = data.map((receta) => ({
+        ...receta,
+        fotoPrincipal: receta.fotoPrincipal
+          ? `data:image/jpeg;base64,${receta.fotoPrincipal}`
+          : 'https://via.placeholder.com/400x160?text=Sin+Imagen',
+        usuario: {
+          ...receta.usuario,
+          avatar: receta.usuario?.avatar
+            ? `data:image/jpeg;base64,${receta.usuario.avatar}`
+            : 'https://ui-avatars.com/api/?name=User',
+        },
+      }));
+
       setRecetas(data);
     } catch (error) {
       console.error(error);
@@ -89,14 +91,11 @@ export default function RecipesScreen() {
     const recetasOrdenadas = [...recetas].sort((a, b) => {
       let resultado = 0;
       switch (clave) {
-        case 'populares':
-          resultado = a.estrellas - b.estrellas;
-          break;
         case 'antiguedad':
-          resultado = a.id - b.id;
+          resultado = (a.idReceta ?? 0) - (b.idReceta ?? 0);
           break;
         case 'usuario':
-          resultado = a.usuario.nombre.localeCompare(b.usuario.nombre);
+          resultado = (a.usuario?.nombre ?? '').localeCompare(b.usuario?.nombre ?? '');
           break;
       }
       return nuevaDireccion ? resultado : -resultado;
@@ -135,24 +134,32 @@ export default function RecipesScreen() {
   const renderItem = ({ item }: { item: Receta }) => (
     <TouchableOpacity
       onPress={() =>
-        router.push(`/drawer/recipedetail?id=${encodeURIComponent(item.id.toString())}`)
+        router.push(`/drawer/recipedetail?id=${encodeURIComponent(item.idReceta.toString())}`)
       }
     >
       <View style={styles.card}>
-        <Image source={{ uri: item.fotoPrincipal }} style={styles.image} />
+        <Image
+          source={{ uri: item.fotoPrincipal }}
+          style={styles.image}
+        />
         <View style={styles.cardContent}>
           <Text style={styles.title}>{item.nombreReceta}</Text>
-          <Text style={styles.description}>{item.descripcionReceta}</Text>
+          <Text style={styles.description}>
+            {item.descripcionReceta || 'Sin descripción'}
+          </Text>
           <View style={styles.infoRow}>
-            <StarRating rating={item.estrellas} />
-            <Ionicons
-              name={item.favorita ? 'bookmark' : 'bookmark-outline'}
-              size={20}
-              color="#2B5399"
-            />
+            <Text style={styles.infoText}>
+              {item.porciones ? `Porciones: ${item.porciones}` : ''}
+            </Text>
+            <Text style={styles.infoText}>
+              {item.tipoReceta?.nombre ? `Tipo: ${item.tipoReceta.nombre}` : ''}
+            </Text>
           </View>
           <View style={styles.userRow}>
-            <Image source={{ uri: item.usuario.avatar }} style={styles.avatar} />
+            <Image
+              source={{ uri: item.usuario.avatar }}
+              style={styles.avatar}
+            />
             <Text>{item.usuario.nombre}</Text>
           </View>
         </View>
@@ -167,13 +174,12 @@ export default function RecipesScreen() {
       ) : (
         <>
           <View style={styles.ordenContainer}>
-            <BotonOrden label="Populares" clave="populares" />
             <BotonOrden label="Antigüedad" clave="antiguedad" />
             <BotonOrden label="Usuario" clave="usuario" />
           </View>
           <FlatList
             data={recetas}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.idReceta.toString()}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
             refreshing={loading}
@@ -223,6 +229,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 6,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#555',
   },
   userRow: {
     flexDirection: 'row',

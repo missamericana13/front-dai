@@ -21,6 +21,7 @@ export default function AddRecipeScreen() {
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState(''); // NUEVO
   const [image, setImage] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState([{ cantidad: '', nombre: '' }]);
@@ -30,6 +31,7 @@ export default function AddRecipeScreen() {
   const resetForm = () => {
     setStep(1);
     setName('');
+    setDescription('');
     setImage(null);
     setImageBase64(null);
     setIngredients([{ cantidad: '', nombre: '' }]);
@@ -103,6 +105,7 @@ export default function AddRecipeScreen() {
   const handleSave = async () => {
     if (
       !name.trim() ||
+      !description.trim() || // Validar descripción
       ingredients.some(i => !i.nombre.trim()) ||
       steps.some(s => !s.texto.trim())
     ) {
@@ -121,13 +124,14 @@ export default function AddRecipeScreen() {
       // Estructura correcta para el backend
       const receta = {
         nombreReceta: name,
+        descripcionReceta: description, // NUEVO
         fotoPrincipal: imageBase64, // base64 o null
         porciones: servings ? parseInt(servings) : 1,
         ingredientes: ingredients.map(item => ({
           cantidad: item.cantidad,
           nombre: item.nombre
         }))
-        // Si tu modelo requiere descripcionReceta, cantidadPersonas, tipoReceta, agrégalos aquí
+        // Si tu modelo requiere cantidadPersonas, tipoReceta, agrégalos aquí
       };
 
       // 1. Crear la receta
@@ -226,6 +230,15 @@ export default function AddRecipeScreen() {
                 <Text style={{ color: '#999' }}>Tocar para subir imagen</Text>
               )}
             </TouchableOpacity>
+
+            {/* Descripción debajo de la imagen */}
+            <TextInput
+              placeholder="Descripción de la receta"
+              value={description}
+              onChangeText={setDescription}
+              style={styles.input}
+              multiline
+            />
 
             <Text style={styles.subtitle}>Ingredientes</Text>
             {ingredients.map((item, index) => (

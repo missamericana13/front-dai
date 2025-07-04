@@ -24,7 +24,7 @@ const blobToBase64 = (blob) => {
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, userRole } = useAuth(); // Agregar userRole
 
   // Usá avatarBase64 para RN, avatarUrl para web
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
@@ -84,9 +84,18 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
               }
               style={styles.avatar}
             />
-            <Text style={styles.invited}>
-              {user?.displayName || 'Invitado'}
-            </Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.invited}>
+                {user?.displayName || 'Invitado'}
+              </Text>
+              {user && userRole && (
+                <Text style={styles.roleText}>
+                  {userRole === 'alumno' ? '🎓 Alumno' : 
+                   userRole === 'instructor' ? '👨‍🏫 Instructor' : 
+                   '👤 Usuario'}
+                </Text>
+              )}
+            </View>
           </View>
 
           {user ? (
@@ -152,6 +161,16 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
                     onPress={() => router.push('./mycourses')}
                   />
                 </>
+              )}
+
+              {/* Mi Cuenta - Solo para alumnos */}
+              {userRole === 'alumno' && (
+                <DrawerItem
+                  label="Mi Cuenta"
+                  labelStyle={styles.menuText}
+                  icon={({ color, size }) => <Ionicons name="wallet" color={color} size={size ?? 24} />}
+                  onPress={() => router.push('./currentaccount')}
+                />
               )}
 
               <DrawerItem
@@ -237,6 +256,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="/courses" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="/mycourses" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="/myprofile" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
+      <Drawer.Screen name="/cuenta-corriente" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="/login" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="/register" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="/favourites" options={{ drawerLabel: () => null, drawerItemStyle: { display: 'none' } }} />
@@ -259,10 +279,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginRight: 16,
   },
+  userInfo: {
+    flex: 1,
+  },
   invited: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#2B5399',
+  },
+  roleText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
   menuText: {
     fontSize: 18,

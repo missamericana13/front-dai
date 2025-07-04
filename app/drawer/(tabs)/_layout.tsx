@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 
 export const unstable_settings = {
-  initialRouteName: 'explore',
+  initialRouteName: 'search', // ✅ Cambiar a 'search'
 };
 
 export default function TabLayout() {
@@ -18,7 +18,6 @@ export default function TabLayout() {
           };
         }
         return {
-          //VERIFICAS ACA, ANTES ERA TRUE
           headerShown: false,
           tabBarStyle: { backgroundColor: '#2B5399', borderTopColor: '#2B5399' },
           tabBarActiveTintColor: '#fff',
@@ -28,6 +27,7 @@ export default function TabLayout() {
         };
       }}
     >
+      {/* SOLO ESTOS 3 TABS VISIBLES */}
       <Tabs.Screen
         name="index"
         options={{
@@ -47,7 +47,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="search"
         options={{
           title: 'Buscar',
           tabBarIcon: ({ color, size }) => (
@@ -55,65 +55,76 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      {/* TODOS ESTOS OCULTOS DE LA BARRA INFERIOR */}
       <Tabs.Screen
         name="courses"
         options={{
-          href: null, // ✅ oculta este tab pero permite usar el layout con la barra
+          href: null, // ✅ oculta este tab
         }}
       />
       <Tabs.Screen
-    name="recipes"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-  <Tabs.Screen
-    name="recipedetail"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-  <Tabs.Screen
-    name="myprofile"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-  <Tabs.Screen
-    name="myrecipes"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-
-    <Tabs.Screen
-    name="mycourses"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-
-  <Tabs.Screen
-    name="coursesdetail"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-
-  <Tabs.Screen
-    name="favourites"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-
-  <Tabs.Screen
-    name="accessrequired"
-    options={{
-      href: null, // ✅ oculta este tab pero permite usar el layout con la barra
-    }}
-  />
-
+        name="recipes"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="recipedetail"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="myprofile"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="myrecipes"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="mycourses"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="coursesdetail"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="favourites"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      <Tabs.Screen
+        name="accessrequired"
+        options={{
+          href: null, // ✅ oculta este tab
+        }}
+      />
+      
+      {/* 🚀 AGREGAR ESTAS LÍNEAS PARA OCULTAR CURRENTACCOUNT */}
+      <Tabs.Screen
+        name="currentaccount"
+        options={{
+          href: null, // ✅ oculta currentaccount de la barra inferior
+        }}
+      />
+      <Tabs.Screen
+        name="CurrentAccount"
+        options={{
+          href: null, // ✅ oculta CurrentAccount de la barra inferior (por si acaso)
+        }}
+      />
     </Tabs>
   );
 }

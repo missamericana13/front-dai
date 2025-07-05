@@ -74,7 +74,7 @@ export default function CourseDetailScreen() {
             ? dataCurso.imagenUrl 
             : `http://192.168.1.31:8080${dataCurso.imagenUrl}`;
         } else {
-          finalImageUrl = `https://picsum.photos/400/160?random=${id}`;
+          finalImageUrl = `http://192.168.1.31:8080/api/cursos/${curso.idCurso}/imagen`;
         }
         
         setCurso({ ...dataCurso, imagenUrl: finalImageUrl });

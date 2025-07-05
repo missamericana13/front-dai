@@ -92,6 +92,18 @@ export default function MyCourseDetailScreen() {
       
       if (historialRes.ok) {
         const historialData = await historialRes.json();
+        console.log('📋 Historial completo recibido:', JSON.stringify(historialData, null, 2));
+        
+        // ✅ NUEVO: Ver la estructura de cada registro
+        historialData.forEach((registro, index) => {
+          console.log(`📝 Registro ${index}:`, Object.keys(registro));
+          console.log(`📅 Campos disponibles:`, {
+            fechaHora: registro.fechaHora,
+            fechaAsistencia: registro.fechaAsistencia,
+            id: registro.id
+          });
+        });
+        
         setHistorialAsistencia(historialData);
       }
     } catch (error) {
@@ -132,6 +144,71 @@ export default function MyCourseDetailScreen() {
       }
     } catch (error) {
       console.error('Error obteniendo asistencia por usuario:', error);
+    }
+  };
+
+  const formatFechaAsistencia = (registro: any) => {
+    // ✅ CORREGIDO: usar fechaHora que es el campo real de tu modelo
+    const fechaString = registro.fechaHora || registro.fechaAsistencia;
+    
+    console.log('🔍 Registro completo:', registro);
+    console.log('📅 Fecha encontrada (fechaHora):', fechaString);
+    
+    if (!fechaString) {
+      console.warn('❌ No se encontró fecha en el registro');
+      return { fecha: 'Fecha no disponible', hora: '--:--' };
+    }
+    
+    try {
+      let fecha: Date;
+      
+      // ✅ MEJORADO: Manejo de LocalDateTime de Java
+      if (typeof fechaString === 'string') {
+        // Formato LocalDateTime de Java: "2025-07-05T15:03:14.742205"
+        if (fechaString.includes('T')) {
+          fecha = new Date(fechaString);
+        }
+        // Si viene como timestamp string
+        else if (!isNaN(Number(fechaString))) {
+          fecha = new Date(Number(fechaString));
+        }
+        // Otros formatos
+        else {
+          fecha = new Date(fechaString);
+        }
+      } else if (typeof fechaString === 'number') {
+        // Si viene como timestamp numérico
+        fecha = new Date(fechaString);
+      } else {
+        // Si es un objeto fecha
+        fecha = new Date(fechaString);
+      }
+      
+      // Verificar que la fecha sea válida
+      if (isNaN(fecha.getTime())) {
+        console.warn('❌ Fecha inválida después del parsing:', fechaString);
+        return { fecha: 'Fecha inválida', hora: '--:--' };
+      }
+      
+      // ✅ FORMATO ARGENTINO MEJORADO
+      const fechaFormateada = fecha.toLocaleDateString('es-AR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      const horaFormateada = fecha.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      console.log('✅ Fecha parseada correctamente:', fechaFormateada, horaFormateada);
+      return { fecha: fechaFormateada, hora: horaFormateada };
+      
+    } catch (error) {
+      console.error('❌ Error parseando fecha:', fechaString, error);
+      return { fecha: 'Error en fecha', hora: '--:--' };
     }
   };
 
@@ -187,18 +264,12 @@ export default function MyCourseDetailScreen() {
             try {
               const token = await AsyncStorage.getItem('token');
               
-              // ✅ ENDPOINT CORRECTO - igual que en CurrentAccount.tsx
+              // ✅ ENDPOINT CORREGIDO - usar el endpoint que existe en el backend
               const res = await fetch(
                 `http://192.168.1.31:8080/api/cursos/baja?idAlumno=${asistencia.alumno.idAlumno}&idCronograma=${asistencia.cronogramaCurso.idCronograma}`,
                 {
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                  },
-                  body: JSON.stringify({
-                    porcentajeReintegro: porcentajeReintegro
-                  }),
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
                 }
               );
               
@@ -278,9 +349,14 @@ export default function MyCourseDetailScreen() {
       }
       
       Alert.alert('Éxito', 'Asistencia registrada correctamente mediante QR');
-      // Recargar historial de asistencia
-      await fetchHistorialAsistencia(asistencia, await AsyncStorage.getItem('token'));
+      
+      // ✅ RECARGAR HISTORIAL CON LOGS PARA DEBUG
+      console.log('🔄 Recargando historial de asistencia...');
+      const tokenRefresh = await AsyncStorage.getItem('token');
+      await fetchHistorialAsistencia(asistencia, tokenRefresh);
+      
     } catch (e) {
+      console.error('Error registrando asistencia:', e);
       Alert.alert('Error', 'No se pudo registrar la asistencia');
     } finally {
       setLoadingAsistencia(false);
@@ -513,32 +589,26 @@ export default function MyCourseDetailScreen() {
                 </View>
               </View>
               
+              {/* ✅ HISTORIAL CON FECHAS CORREGIDAS */}
               {historialAsistencia.length > 0 ? (
                 <View style={styles.historialContainer}>
                   <Text style={styles.historialTitle}>Historial de asistencias</Text>
-                  {historialAsistencia.slice(-5).map((registro, index) => (
-                    <View key={index} style={styles.registroAsistencia}>
-                      <View style={styles.registroIcon}>
-                        <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                  {historialAsistencia.slice(-5).map((registro, index) => {
+                    // ✅ PASAR TODO EL REGISTRO A LA FUNCIÓN
+                    const { fecha, hora } = formatFechaAsistencia(registro);
+                    
+                    return (
+                      <View key={registro.id || index} style={styles.registroAsistencia}>
+                        <View style={styles.registroIcon}>
+                          <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                        </View>
+                        <View style={styles.registroInfo}>
+                          <Text style={styles.fechaAsistencia}>{fecha}</Text>
+                          <Text style={styles.horaAsistencia}>{hora}</Text>
+                        </View>
                       </View>
-                      <View style={styles.registroInfo}>
-                        <Text style={styles.fechaAsistencia}>
-                          {new Date(registro.fechaAsistencia).toLocaleDateString('es-AR', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </Text>
-                        <Text style={styles.horaAsistencia}>
-                          {new Date(registro.fechaAsistencia).toLocaleTimeString('es-AR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                   
                   <TouchableOpacity 
                     style={styles.verificarButton} 

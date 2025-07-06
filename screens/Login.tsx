@@ -48,7 +48,7 @@ export default function Login() {
 
       router.replace('./drawer/(tabs)');
     } catch (err) {
-      setError('No se pudo conectar al servidor.');
+      setError('Email o contraseña incorrectos');
     }
   };
 

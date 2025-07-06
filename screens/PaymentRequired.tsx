@@ -41,8 +41,14 @@ export default function PaymentRequired() {
     await AsyncStorage.setItem('alumno_dniFondo', cleanBase64(dniFondo) ?? '');
     await AsyncStorage.setItem('alumno_tramite', tramite);
 
+    const isFromProfile = await AsyncStorage.getItem('fromProfile');
+  if (isFromProfile === 'true') {
+    await AsyncStorage.removeItem('fromProfile');
+    router.replace('/drawer/myprofile');
+  } else {
     router.push('/registerstep2');
-  };
+  }
+};
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -90,6 +96,7 @@ export default function PaymentRequired() {
         <TextInput
           style={styles.input}
           placeholder="N° de trámite"
+          keyboardType="numeric"
           value={tramite}
           onChangeText={setTramite}
         />

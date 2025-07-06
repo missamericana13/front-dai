@@ -402,30 +402,6 @@ export default function SearchScreen() {
             </View>
           )}
 
-          {/* ✅ Accesos rápidos */}
-          <View style={styles.quickActionsSection}>
-            <Text style={styles.sectionTitle}>Búsquedas rápidas</Text>
-            <View style={styles.quickActionsGrid}>
-              {[
-                { label: 'Pollo', icon: 'restaurant-outline', search: 'pollo' },
-                { label: 'Pasta', icon: 'nutrition-outline', search: 'pasta' },
-                { label: 'Vegetariano', icon: 'leaf-outline', search: 'vegetariano' },
-                { label: 'Postres', icon: 'ice-cream-outline', search: 'postre' },
-              ].map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.quickActionCard}
-                  onPress={() => {
-                    setSearchText(item.search);
-                    setTimeout(() => handleSearch(), 100);
-                  }}
-                >
-                  <Ionicons name={item.icon as any} size={24} color="#2B5399" />
-                  <Text style={styles.quickActionText}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         </ScrollView>
       )}
 

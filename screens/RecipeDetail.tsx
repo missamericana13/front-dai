@@ -295,7 +295,7 @@ export default function RecipeDetailScreen() {
 
   // ✅ Formatear tiempo de preparación
   const formatearTiempo = (minutos?: number) => {
-    if (!minutos) return 'Sin especificar';
+    if (!minutos) return '60 min';
     
     if (minutos < 60) {
       return `${minutos} min`;

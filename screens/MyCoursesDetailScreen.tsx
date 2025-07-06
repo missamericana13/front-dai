@@ -16,8 +16,67 @@ import { useAuth } from '../context/authContext';
 
 const { width } = Dimensions.get('window');
 
+// ✅ MEJORADO: Placeholder con imágenes más confiables
+const getPlaceholderImage = (courseId: number): string => {
+  // Usar imágenes de Pexels que son más confiables que Unsplash
+  const placeholderImages = [
+    'https://images.pexels.com/photos/1251208/pexels-photo-1251208.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Bread making
+    'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Kitchen utensils
+    'https://images.pexels.com/photos/1414651/pexels-photo-1414651.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Cooking class
+    'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Baking ingredients
+    'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Chef working
+  ];
+  
+  const imageIndex = courseId % placeholderImages.length;
+  return placeholderImages[imageIndex];
+};
+
+// ✅ FUNCIÓN PARA VALIDAR BASE64 DE IMAGEN CON SOPORTE PARA URLs
+const isValidImageBase64 = (base64String: string): boolean => {
+  try {
+    if (!base64String || base64String.trim() === '') {
+      return false;
+    }
+
+    const decoded = atob(base64String);
+    
+    // ✅ NUEVO: Si es una URL válida, permitirla
+    if (decoded.startsWith('http')) {
+      // Verificar que sea una URL de imagen válida
+      const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(decoded) ||
+                        decoded.includes('pexels.com') ||
+                        decoded.includes('unsplash.com') ||
+                        decoded.includes('images.');
+      
+      if (isImageUrl) {
+        console.log('✅ Base64 contiene URL de imagen válida:', decoded);
+        return true;
+      } else {
+        console.log('⚠️ Base64 contiene URL, pero no es de imagen');
+        return false;
+      }
+    }
+    
+    // Verificar que tenga un tamaño mínimo para ser una imagen real
+    if (decoded.length < 100) {
+      console.log('⚠️ Base64 demasiado corto para ser imagen');
+      return false;
+    }
+    
+    return true;
+  } catch (e) {
+    console.log('⚠️ Error validando Base64:', e);
+    return false;
+  }
+};
+
 export default function MyCourseDetailScreen() {
-  const { id, idAsistencia } = useLocalSearchParams<{ id: string; idAsistencia: string }>();
+  // ✅ NUEVO: Recibir también la imageUrl desde el listado
+  const { id, idAsistencia, imageUrl } = useLocalSearchParams<{ 
+    id: string; 
+    idAsistencia: string; 
+    imageUrl?: string; 
+  }>();
   const { user } = useAuth();
   const router = useRouter();
   const [curso, setCurso] = useState<any>(null);
@@ -25,6 +84,7 @@ export default function MyCourseDetailScreen() {
   const [historialAsistencia, setHistorialAsistencia] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAsistencia, setLoadingAsistencia] = useState(false);
+  const [finalImageUrl, setFinalImageUrl] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,19 +99,38 @@ export default function MyCourseDetailScreen() {
         if (!cursoRes.ok) throw new Error('No se pudo cargar el curso');
         const cursoData = await cursoRes.json();
         
-        // ✅ Procesar imagen igual que en CourseDetailScreen
-        let finalImageUrl = '';
-        if (cursoData.imagen) {
-          finalImageUrl = `data:image/jpeg;base64,${cursoData.imagen}`;
+        // ✅ NUEVA LÓGICA: Priorizar imagen del listado, luego backend, luego placeholder
+        let imageUrlToUse = '';
+        
+        if (imageUrl && imageUrl !== 'undefined' && imageUrl.trim() !== '') {
+          // 1. Usar imagen pasada desde el listado (decodificar si viene encoded)
+          imageUrlToUse = decodeURIComponent(imageUrl);
+          console.log('✅ Usando imagen del listado en MyCourses:', imageUrlToUse);
+        } else if (cursoData.imagen && isValidImageBase64(cursoData.imagen)) {
+          // 2. Si no hay imagen del listado, intentar Base64 del backend
+          const decoded = atob(cursoData.imagen);
+          
+          if (decoded.startsWith('http')) {
+            imageUrlToUse = decoded;
+            console.log('🔗 Usando URL decodificada del backend en MyCourses:', decoded);
+          } else {
+            imageUrlToUse = `data:image/jpeg;base64,${cursoData.imagen}`;
+            console.log('✅ Usando imagen Base64 del backend en MyCourses');
+          }
         } else if (cursoData.imagenUrl) {
-          finalImageUrl = cursoData.imagenUrl.startsWith('http') 
+          // 3. Intentar imagenUrl del backend
+          imageUrlToUse = cursoData.imagenUrl.startsWith('http') 
             ? cursoData.imagenUrl 
             : `http://192.168.1.31:8080${cursoData.imagenUrl}`;
+          console.log('🔗 Usando imagenUrl del backend en MyCourses:', imageUrlToUse);
         } else {
-          finalImageUrl = `https://picsum.photos/400/200?random=${id}`;
+          // 4. Fallback a placeholder
+          imageUrlToUse = getPlaceholderImage(cursoData.idCurso);
+          console.log('⚠️ Usando placeholder para curso en MyCourses:', cursoData.idCurso);
         }
         
-        setCurso({ ...cursoData, imagenUrl: finalImageUrl });
+        setFinalImageUrl(imageUrlToUse);
+        setCurso({ ...cursoData, imagenUrl: imageUrlToUse });
 
         // Si tenemos ID de asistencia, obtener detalles de la inscripción
         if (idAsistencia) {
@@ -70,6 +149,7 @@ export default function MyCourseDetailScreen() {
           await fetchAsistenciaByUser(token);
         }
       } catch (e) {
+        console.error('❌ Error cargando curso en MyCourses:', e);
         Alert.alert('Error', 'No se pudo cargar la información del curso');
         setCurso(null);
       } finally {
@@ -77,7 +157,16 @@ export default function MyCourseDetailScreen() {
       }
     };
     fetchData();
-  }, [id, idAsistencia]);
+  }, [id, idAsistencia, imageUrl]);
+
+  const handleImageError = () => {
+    console.log('⚠️ Error cargando imagen en MyCourses, usando placeholder');
+    if (curso) {
+      const placeholderUrl = getPlaceholderImage(curso.idCurso);
+      setFinalImageUrl(placeholderUrl);
+      setCurso({ ...curso, imagenUrl: placeholderUrl });
+    }
+  };
 
   const fetchHistorialAsistencia = async (asistenciaData: any, token: string | null) => {
     if (!asistenciaData?.alumno?.idAlumno || !asistenciaData?.cronogramaCurso?.idCronograma) return;
@@ -442,12 +531,15 @@ export default function MyCourseDetailScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Imagen de portada con overlay */}
+      {/* ✅ MEJORADO: Imagen de portada con mejor manejo de errores */}
       <View style={styles.imageContainer}>
         <Image 
-          source={{ uri: curso.imagenUrl }} 
+          source={{ uri: finalImageUrl }} 
           style={styles.imagen}
-          onError={() => console.log('Error cargando imagen del curso')}
+          onError={handleImageError}
+          onLoadStart={() => console.log(`📸 Cargando imagen en MyCourses: ${finalImageUrl}`)}
+          onLoad={() => console.log(`✅ Imagen cargada en MyCourses para curso ${curso.idCurso}`)}
+          onLoadEnd={() => console.log(`🏁 Carga finalizada en MyCourses para curso ${curso.idCurso}`)}
         />
         <View style={styles.imageOverlay}>
           <Text style={styles.titulo}>{curso.nombre}</Text>
@@ -656,6 +748,7 @@ export default function MyCourseDetailScreen() {
   );
 }
 
+// ✅ Mantengo todos los estilos existentes
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -692,6 +785,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+    backgroundColor: '#f0f0f0',
   },
   imageOverlay: {
     position: 'absolute',

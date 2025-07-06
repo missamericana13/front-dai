@@ -28,7 +28,8 @@ interface Usuario {
 }
 
 interface TipoReceta {
-  nombre?: string;
+  idTipo: number;
+  descripcion: string;
 }
 
 interface Receta {
@@ -59,6 +60,11 @@ export default function SearchScreen() {
   const [sinIngrediente, setSinIngrediente] = useState('');
   const [sortBy, setSortBy] = useState('nombreReceta');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // ✅ NUEVO: Estados para tipos de receta
+  const [selectedTipoFilter, setSelectedTipoFilter] = useState<number | null>(null);
+  const [tiposReceta, setTiposReceta] = useState<TipoReceta[]>([]);
+  const [loadingTipos, setLoadingTipos] = useState(false);
 
   // Sugerencias y recomendaciones
   const [sugerencias, setSugerencias] = useState<Receta[]>([]);
@@ -76,6 +82,28 @@ export default function SearchScreen() {
       return mins > 0 ? `${horas}h ${mins}min` : `${horas}h`;
     }
   };
+
+  // ✅ NUEVO: Cargar tipos de receta al inicializar
+  useEffect(() => {
+    const fetchTiposReceta = async () => {
+      setLoadingTipos(true);
+      try {
+        const response = await fetch('http://192.168.1.31:8080/api/tiposReceta');
+        if (response.ok) {
+          const tipos = await response.json();
+          setTiposReceta(tipos);
+        } else {
+          console.error('Error cargando tipos de receta');
+        }
+      } catch (error) {
+        console.error('Error cargando tipos de receta:', error);
+      } finally {
+        setLoadingTipos(false);
+      }
+    };
+    
+    fetchTiposReceta();
+  }, []);
 
   // Cargar sugerencias (últimas 3 recetas creadas)
   useEffect(() => {
@@ -108,8 +136,12 @@ export default function SearchScreen() {
     fetchSugerencias();
   }, []);
 
-  // Construir la URL según los filtros
+  // ✅ ACTUALIZADO: Construir la URL según los filtros (incluyendo tipo)
   const buildUrl = () => {
+    // Prioridad: tipo > ingrediente > sin ingrediente > búsqueda por nombre
+    if (selectedTipoFilter) {
+      return `${API_BASE_URL}/tipo/${selectedTipoFilter}?sortBy=${sortBy}&order=${order}`;
+    }
     if (ingrediente) {
       return `${API_BASE_URL}/ingrediente?nombreIngrediente=${encodeURIComponent(ingrediente)}&sortBy=${sortBy}&order=${order}`;
     }
@@ -120,7 +152,8 @@ export default function SearchScreen() {
   };
 
   const handleSearch = async () => {
-    if (!searchText.trim() && !ingrediente && !sinIngrediente) {
+    // ✅ ACTUALIZADO: Permitir búsqueda solo por tipo
+    if (!searchText.trim() && !ingrediente && !sinIngrediente && !selectedTipoFilter) {
       Alert.alert('Búsqueda vacía', 'Escribe algo para buscar o usa los filtros');
       return;
     }
@@ -183,20 +216,31 @@ export default function SearchScreen() {
     }
   };
 
-  // ✅ Verificar si hay filtros activos
-  const hasActiveFilters = ingrediente || sinIngrediente || sortBy !== 'nombreReceta' || order !== 'asc';
+  // ✅ ACTUALIZADO: Verificar si hay filtros activos (incluyendo tipo)
+  const hasActiveFilters = ingrediente || sinIngrediente || selectedTipoFilter || sortBy !== 'nombreReceta' || order !== 'asc';
 
   const applyFilters = () => {
     setFilterVisible(false);
     handleSearch();
   };
 
+  // ✅ ACTUALIZADO: Limpiar todos los filtros (incluyendo tipo)
   const clearFilters = () => {
     setIngrediente('');
     setSinIngrediente('');
+    setSelectedTipoFilter(null);
     setSortBy('nombreReceta');
     setOrder('asc');
     setFilterVisible(false);
+  };
+
+  // ✅ NUEVO: Función para buscar por tipo directamente (para acciones rápidas)
+  const buscarPorTipo = (idTipo: number) => {
+    setSelectedTipoFilter(idTipo);
+    setSearchText('');
+    setIngrediente('');
+    setSinIngrediente('');
+    handleSearch();
   };
 
   // ✅ Cards mejoradas
@@ -214,9 +258,9 @@ export default function SearchScreen() {
           style={styles.image}
           onError={() => console.log('Error cargando imagen')}
         />
-        {item.tipoReceta?.nombre && (
+        {item.tipoReceta?.descripcion && (
           <View style={styles.tipoBadge}>
-            <Text style={styles.tipoText}>{item.tipoReceta.nombre}</Text>
+            <Text style={styles.tipoText}>{item.tipoReceta.descripcion}</Text>
           </View>
         )}
       </View>
@@ -296,6 +340,18 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
+  // ✅ NUEVO: Renderizar acciones rápidas por tipo
+  const renderQuickActionItem = ({ item }: { item: TipoReceta }) => (
+    <TouchableOpacity
+      style={styles.quickActionCard}
+      onPress={() => buscarPorTipo(item.idTipo)}
+      activeOpacity={0.8}
+    >
+      <Ionicons name="pricetag" size={32} color="#2B5399" />
+      <Text style={styles.quickActionText}>{item.descripcion}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {/* ✅ Barra de búsqueda mejorada */}
@@ -339,13 +395,23 @@ export default function SearchScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ✅ Chips de filtros activos */}
+        {/* ✅ ACTUALIZADO: Chips de filtros activos (incluyendo tipo) */}
         {hasActiveFilters && (
           <ScrollView 
             horizontal 
             style={styles.filtersChipsContainer}
             showsHorizontalScrollIndicator={false}
           >
+            {selectedTipoFilter && (
+              <View style={styles.filterChip}>
+                <Text style={styles.filterChipText}>
+                  Tipo: {tiposReceta.find(t => t.idTipo === selectedTipoFilter)?.descripcion || 'Seleccionado'}
+                </Text>
+                <TouchableOpacity onPress={() => setSelectedTipoFilter(null)}>
+                  <Ionicons name="close" size={16} color="#2B5399" />
+                </TouchableOpacity>
+              </View>
+            )}
             {ingrediente && (
               <View style={styles.filterChip}>
                 <Text style={styles.filterChipText}>Con: {ingrediente}</Text>
@@ -383,7 +449,7 @@ export default function SearchScreen() {
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>¿Qué quieres cocinar hoy?</Text>
             <Text style={styles.welcomeSubtitle}>
-              Busca por nombre, ingredientes o explora nuestras sugerencias
+              Busca por nombre, ingredientes, tipo o explora nuestras sugerencias
             </Text>
           </View>
 
@@ -402,6 +468,21 @@ export default function SearchScreen() {
             </View>
           )}
 
+          {/* ✅ NUEVO: Sección de acciones rápidas por tipo */}
+          {tiposReceta.length > 0 && (
+            <View style={styles.quickActionsSection}>
+              <Text style={styles.sectionTitle}>Buscar por tipo</Text>
+              <FlatList
+                data={tiposReceta}
+                keyExtractor={(item) => `tipo-${item.idTipo}`}
+                renderItem={renderQuickActionItem}
+                numColumns={2}
+                columnWrapperStyle={styles.quickActionsRow}
+                contentContainerStyle={styles.quickActionsList}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -462,7 +543,7 @@ export default function SearchScreen() {
         </>
       )}
 
-      {/* ✅ Modal de filtros mejorado */}
+      {/* ✅ ACTUALIZADO: Modal de filtros con selector de tipos */}
       <Modal visible={filterVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -474,6 +555,44 @@ export default function SearchScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              {/* ✅ NUEVO: Filtro por tipo de receta */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Tipo de receta</Text>
+                {loadingTipos ? (
+                  <View style={styles.loadingTiposContainer}>
+                    <ActivityIndicator size="small" color="#2B5399" />
+                    <Text style={styles.loadingTiposText}>Cargando tipos...</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.tipoFilters}>
+                      {tiposReceta.map((tipo) => (
+                        <TouchableOpacity
+                          key={tipo.idTipo}
+                          style={[
+                            styles.tipoFilterChip,
+                            selectedTipoFilter === tipo.idTipo && styles.tipoFilterChipSelected
+                          ]}
+                          onPress={() => setSelectedTipoFilter(
+                            selectedTipoFilter === tipo.idTipo ? null : tipo.idTipo
+                          )}
+                        >
+                          <Text style={[
+                            styles.tipoFilterText,
+                            selectedTipoFilter === tipo.idTipo && styles.tipoFilterTextSelected
+                          ]}>
+                            {tipo.descripcion}
+                          </Text>
+                          {selectedTipoFilter === tipo.idTipo && (
+                            <Ionicons name="checkmark" size={14} color="white" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+
               {/* Contiene ingrediente */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Debe contener ingrediente</Text>
@@ -716,18 +835,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  // ✅ NUEVOS: Estilos para acciones rápidas por tipo
   quickActionsSection: {
     marginTop: 20,
     paddingHorizontal: 16,
+    marginBottom: 20,
   },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  quickActionsList: {
+    paddingTop: 8,
+  },
+  quickActionsRow: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   quickActionCard: {
     flex: 1,
-    minWidth: '45%',
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
@@ -737,12 +859,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    marginHorizontal: 6,
   },
   quickActionText: {
     marginTop: 8,
     fontSize: 14,
     fontWeight: '500',
     color: '#2B5399',
+    textAlign: 'center',
   },
   resultsContainer: {
     flex: 1,
@@ -893,8 +1017,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: '85%', // ✅ CAMBIO: Altura fija más alta
-    maxHeight: '85%', // ✅ CAMBIO: Altura máxima aumentada
+    height: '85%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -910,10 +1034,10 @@ const styles = StyleSheet.create({
     color: '#2B5399',
   },
   modalBody: {
-    flex: 1, // ✅ CAMBIO: Flex para ocupar espacio disponible
+    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 0, // ✅ CAMBIO: Sin padding bottom
+    paddingBottom: 0,
   },
   filterSection: {
     marginBottom: 24,
@@ -933,6 +1057,47 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#2B5399',
+  },
+  // ✅ NUEVOS: Estilos para filtros de tipo
+  loadingTiposContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingTiposText: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  tipoFilters: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  tipoFilterChip: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tipoFilterChipSelected: {
+    backgroundColor: '#2B5399',
+    borderColor: '#2B5399',
+  },
+  tipoFilterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  tipoFilterTextSelected: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   pickerContainer: {
     backgroundColor: '#f8f9fa',

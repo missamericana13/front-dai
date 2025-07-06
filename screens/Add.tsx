@@ -17,6 +17,12 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
+// ✅ Interface para TipoReceta
+interface TipoReceta {
+  idTipo: number;
+  descripcion: string;
+}
+
 export default function AddRecipeScreen() {
   const router = useRouter();
 
@@ -30,6 +36,11 @@ export default function AddRecipeScreen() {
   const [servings, setServings] = useState('');
   const [preparationTime, setPreparationTime] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  
+  // ✅ Estados para tipos de receta
+  const [selectedTipoReceta, setSelectedTipoReceta] = useState<number | null>(null);
+  const [tiposReceta, setTiposReceta] = useState<TipoReceta[]>([]);
+  const [loadingTipos, setLoadingTipos] = useState(false);
 
   const resetForm = () => {
     setStep(1);
@@ -42,9 +53,29 @@ export default function AddRecipeScreen() {
     setServings('');
     setPreparationTime('');
     setDifficulty('');
+    setSelectedTipoReceta(null);
   };
 
+  // ✅ Cargar tipos de receta al inicializar
   useEffect(() => {
+    const fetchTiposReceta = async () => {
+      setLoadingTipos(true);
+      try {
+        const response = await fetch('http://192.168.1.31:8080/api/tiposReceta');
+        if (response.ok) {
+          const tipos = await response.json();
+          setTiposReceta(tipos);
+        } else {
+          console.error('Error cargando tipos de receta');
+        }
+      } catch (error) {
+        console.error('Error cargando tipos de receta:', error);
+      } finally {
+        setLoadingTipos(false);
+      }
+    };
+    
+    fetchTiposReceta();
     resetForm();
   }, []);
 
@@ -139,11 +170,15 @@ export default function AddRecipeScreen() {
         cantidadPersonas: servings ? parseInt(servings) : 1,
         tiempoPreparacion: preparationTime ? parseInt(preparationTime) : null,
         dificultad: difficulty || null,
+        // ✅ AGREGAR TIPO DE RECETA
+        tipoReceta: selectedTipoReceta ? { idTipo: selectedTipoReceta } : null,
         ingredientes: ingredients.map(item => ({
           cantidad: item.cantidad,
           nombre: item.nombre
         }))
       };
+
+      console.log('Enviando receta:', receta);
 
       // 1. Crear la receta
       const res = await fetch(`http://192.168.1.31:8080/api/recetas?idUsuario=${userId}`, {
@@ -202,6 +237,7 @@ export default function AddRecipeScreen() {
         },
       ]);
     } catch (err) {
+      console.error('Error saving recipe:', err);
       Alert.alert('Error', 'No se pudo conectar al servidor.');
     }
   };
@@ -315,8 +351,45 @@ export default function AddRecipeScreen() {
                     textAlignVertical="top"
                   />
                 </View>
-                {/* ✅ Información adicional */}
+              </View>
+
+              {/* ✅ NUEVO: Tipo de receta */}
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="pricetag" size={20} color="#2B5399" /> Tipo de receta
+                </Text>
                 
+                {loadingTipos ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Cargando tipos...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.tipoContainer}>
+                    {tiposReceta.map((tipo) => (
+                      <TouchableOpacity
+                        key={tipo.idTipo}
+                        style={[
+                          styles.tipoOption,
+                          selectedTipoReceta === tipo.idTipo && styles.tipoSelected
+                        ]}
+                        onPress={() => setSelectedTipoReceta(
+                          selectedTipoReceta === tipo.idTipo ? null : tipo.idTipo
+                        )}
+                      >
+                        <Text style={[
+                          styles.tipoText,
+                          selectedTipoReceta === tipo.idTipo && styles.tipoTextSelected
+                        ]}>
+                          {tipo.descripcion}
+                        </Text>
+                        {selectedTipoReceta === tipo.idTipo && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                <Text style={styles.optionalText}>Opcional - Ayuda a otros a encontrar tu receta</Text>
               </View>
 
               {/* ✅ Información adicional */}
@@ -545,9 +618,6 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
-  row: {
-    flexDirection: 'row',
-  },
   primaryButton: {
     backgroundColor: '#2B5399',
     flexDirection: 'row',
@@ -603,6 +673,51 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // ✅ NUEVOS ESTILOS para tipos de receta
+  tipoContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  tipoOption: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tipoSelected: {
+    backgroundColor: '#2B5399',
+    borderColor: '#2B5399',
+  },
+  tipoText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  tipoTextSelected: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  optionalText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
   difficultyContainer: {
     flexDirection: 'row',

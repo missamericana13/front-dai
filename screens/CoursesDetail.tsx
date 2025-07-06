@@ -9,6 +9,56 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
+// ✅ PLACEHOLDER de ejemplo para cuando no hay imagen
+const getPlaceholderImage = (courseId: number): string => {
+  const placeholderImages = [
+    'https://images.pexels.com/photos/1251208/pexels-photo-1251208.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
+    'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
+    'https://images.pexels.com/photos/1414651/pexels-photo-1414651.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
+    'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
+    'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
+  ];
+  
+  const imageIndex = courseId % placeholderImages.length;
+  return placeholderImages[imageIndex];
+};
+
+// ✅ FUNCIÓN PARA VALIDAR BASE64 DE IMAGEN CON SOPORTE PARA URLs
+const isValidImageBase64 = (base64String: string): boolean => {
+  try {
+    if (!base64String || base64String.trim() === '') {
+      return false;
+    }
+
+    const decoded = atob(base64String);
+    
+    if (decoded.startsWith('http')) {
+      const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(decoded) ||
+                        decoded.includes('pexels.com') ||
+                        decoded.includes('unsplash.com') ||
+                        decoded.includes('images.');
+      
+      if (isImageUrl) {
+        console.log('✅ Base64 contiene URL de imagen válida:', decoded);
+        return true;
+      } else {
+        console.log('⚠️ Base64 contiene URL, pero no es de imagen');
+        return false;
+      }
+    }
+    
+    if (decoded.length < 100) {
+      console.log('⚠️ Base64 demasiado corto para ser imagen');
+      return false;
+    }
+    
+    return true;
+  } catch (e) {
+    console.log('⚠️ Error validando Base64:', e);
+    return false;
+  }
+};
+
 interface Curso {
   idCurso: number;
   nombre: string;
@@ -43,7 +93,8 @@ interface Cronograma {
 }
 
 export default function CourseDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // ✅ NUEVO: Recibir también la imageUrl desde el listado
+  const { id, imageUrl } = useLocalSearchParams<{ id: string; imageUrl?: string }>();
   const { user, userRole } = useAuth();
   const router = useRouter();
   const [curso, setCurso] = useState<Curso | null>(null);
@@ -51,6 +102,7 @@ export default function CourseDetailScreen() {
   const [selectedCronograma, setSelectedCronograma] = useState<string | null>(null);
   const [selectedSede, setSelectedSede] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [finalImageUrl, setFinalImageUrl] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,19 +117,38 @@ export default function CourseDetailScreen() {
         if (!resCurso.ok) throw new Error('No se pudo cargar el curso');
         const dataCurso = await resCurso.json();
         
-        // Procesar imagen
-        let finalImageUrl = '';
-        if (dataCurso.imagen) {
-          finalImageUrl = `data:image/jpeg;base64,${dataCurso.imagen}`;
+        // ✅ NUEVA LÓGICA: Priorizar imagen del listado, luego backend, luego placeholder
+        let imageUrlToUse = '';
+        
+        if (imageUrl && imageUrl !== 'undefined' && imageUrl.trim() !== '') {
+          // 1. Usar imagen pasada desde el listado (decodificar si viene encoded)
+          imageUrlToUse = decodeURIComponent(imageUrl);
+          console.log('✅ Usando imagen del listado:', imageUrlToUse);
+        } else if (dataCurso.imagen && isValidImageBase64(dataCurso.imagen)) {
+          // 2. Si no hay imagen del listado, intentar Base64 del backend
+          const decoded = atob(dataCurso.imagen);
+          
+          if (decoded.startsWith('http')) {
+            imageUrlToUse = decoded;
+            console.log('🔗 Usando URL decodificada del backend:', decoded);
+          } else {
+            imageUrlToUse = `data:image/jpeg;base64,${dataCurso.imagen}`;
+            console.log('✅ Usando imagen Base64 del backend');
+          }
         } else if (dataCurso.imagenUrl) {
-          finalImageUrl = dataCurso.imagenUrl.startsWith('http') 
+          // 3. Intentar imagenUrl del backend
+          imageUrlToUse = dataCurso.imagenUrl.startsWith('http') 
             ? dataCurso.imagenUrl 
             : `http://192.168.1.31:8080${dataCurso.imagenUrl}`;
+          console.log('🔗 Usando imagenUrl del backend:', imageUrlToUse);
         } else {
-          finalImageUrl = `http://192.168.1.31:8080/api/cursos/${curso.idCurso}/imagen`;
+          // 4. Fallback a placeholder
+          imageUrlToUse = getPlaceholderImage(dataCurso.idCurso);
+          console.log('⚠️ Usando placeholder para curso:', dataCurso.idCurso);
         }
         
-        setCurso({ ...dataCurso, imagenUrl: finalImageUrl });
+        setFinalImageUrl(imageUrlToUse);
+        setCurso({ ...dataCurso, imagenUrl: imageUrlToUse });
 
         // Obtener cronogramas específicos del curso
         const resCrono = await fetch(`http://192.168.1.31:8080/api/cronogramas?cursoId=${id}`);
@@ -89,6 +160,7 @@ export default function CourseDetailScreen() {
           setSelectedCronograma(dataCrono[0].idCronograma.toString());
         }
       } catch (e) {
+        console.error('❌ Error cargando curso:', e);
         Alert.alert('Error', 'No se pudo cargar el curso');
         setCurso(null);
       } finally {
@@ -96,7 +168,16 @@ export default function CourseDetailScreen() {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, imageUrl]);
+
+  const handleImageError = () => {
+    console.log('⚠️ Error cargando imagen en detalle, usando placeholder');
+    if (curso) {
+      const placeholderUrl = getPlaceholderImage(curso.idCurso);
+      setFinalImageUrl(placeholderUrl);
+      setCurso({ ...curso, imagenUrl: placeholderUrl });
+    }
+  };
 
   const handleInscribirme = async () => {
     if (!selectedCronograma) {
@@ -205,12 +286,15 @@ export default function CourseDetailScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Imagen de portada */}
+      {/* ✅ MEJORADO: Imagen de portada con mejor manejo de errores */}
       <View style={styles.imageContainer}>
         <Image 
-          source={{ uri: curso.imagenUrl }} 
+          source={{ uri: finalImageUrl }} 
           style={styles.imagen}
-          onError={() => console.log('Error cargando imagen del curso')}
+          onError={handleImageError}
+          onLoadStart={() => console.log(`📸 Cargando imagen en detalle: ${finalImageUrl}`)}
+          onLoad={() => console.log(`✅ Imagen cargada en detalle para curso ${curso.idCurso}`)}
+          onLoadEnd={() => console.log(`🏁 Carga finalizada en detalle para curso ${curso.idCurso}`)}
         />
         <View style={styles.imageOverlay}>
           <Text style={styles.titulo}>{curso.nombre}</Text>
@@ -428,6 +512,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+    backgroundColor: '#f0f0f0',
   },
   imageOverlay: {
     position: 'absolute',

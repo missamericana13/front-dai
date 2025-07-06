@@ -8,12 +8,10 @@ import { useAuth } from '../../context/authContext';
 
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 
-// Utilidad para convertir blob a base64 (solo para React Native)
 const blobToBase64 = (blob) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      // El resultado es "data:image/jpeg;base64,...."
       const base64 = reader.result.split(',')[1];
       resolve(base64);
     };
@@ -24,9 +22,8 @@ const blobToBase64 = (blob) => {
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const router = useRouter();
-  const { user, logout, userRole } = useAuth(); // Agregar userRole
+  const { user, logout, userRole } = useAuth(); 
 
-  // Usá avatarBase64 para RN, avatarUrl para web
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -57,7 +54,6 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     };
     fetchAvatar();
   } else {
-    // Si no hay usuario, limpiar el avatar
     setAvatarBase64(null);
     setAvatarUrl(null);
   }
@@ -218,7 +214,6 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             icon={({ color, size }) => <Ionicons name="log-out" color={'red'} size={size ?? 24} />}
             onPress={async () => {
               await logout();
-              // El Drawer se actualizará automáticamente y mostrará la imagen default
             }}
           />
         )}

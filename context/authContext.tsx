@@ -17,12 +17,12 @@ type UserRole = 'visitante' | 'usuario' | 'alumno' | 'instructor';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  userId: number | null; // Agregar esto para compatibilidad
+  userId: number | null; 
   userRole: UserRole;
   setUserRole: (role: UserRole) => void;
   login: (userData: User) => void;
   logout: () => void;
-  refreshUserRole: () => Promise<void>; // Nuevo método para refrescar el rol
+  refreshUserRole: () => Promise<void>; 
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,12 +32,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('visitante');
 
-  // Función para verificar el rol real del usuario en el backend
   const checkUserRole = async (userId: number): Promise<UserRole> => {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      // Verificar si es alumno
       try {
         const alumnoRes = await fetch(`http://192.168.1.31:8080/api/alumnos/por-usuario/${userId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -49,7 +47,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('No es alumno');
       }
 
-      // Verificar si es instructor
       try {
         const instructorRes = await fetch(`http://192.168.1.31:8080/api/instructores/por-usuario/${userId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -61,7 +58,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('No es instructor');
       }
 
-      // Si no es ni alumno ni instructor, es usuario normal
       return 'usuario';
     } catch (error) {
       console.error('Error verificando rol del usuario:', error);
@@ -88,12 +84,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(savedUser);
           setIsAuthenticated(true);
           
-          // Si tenemos un rol guardado, úsalo temporalmente
           if (savedRole && ['alumno', 'instructor', 'usuario'].includes(savedRole)) {
             setUserRole(savedRole as UserRole);
           }
           
-          // Verificar el rol real en el backend
           const realRole = await checkUserRole(savedUser.id);
           setUserRole(realRole);
           await AsyncStorage.setItem('userRole', realRole);
@@ -113,7 +107,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
     setIsAuthenticated(true);
     
-    // Verificar el rol real del usuario en el backend
     const realRole = await checkUserRole(userData.id);
     setUserRole(realRole);
     
@@ -138,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isAuthenticated,
         user,
-        userId: user?.id || null, // Agregar para compatibilidad
+        userId: user?.id || null, 
         userRole,
         setUserRole: handleSetUserRole,
         login,

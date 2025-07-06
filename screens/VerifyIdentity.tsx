@@ -1,4 +1,3 @@
-// screens/VerifyIdentity.tsx
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,7 +10,6 @@ export default function VerifyIdentity() {
   const [dniNumber, setDniNumber] = useState('');
 
   const handleSave = () => {
-    // Simulación de guardar/verificar identidad
     router.push('/drawer');
   };
 

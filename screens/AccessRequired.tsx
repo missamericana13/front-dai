@@ -1,4 +1,3 @@
-// screens/AccessRequired.tsx
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -9,7 +8,7 @@ export default function AccessRequired() {
     return (
         <View style={styles.container}>
             <Image
-                source={require('../assets/images/saberesysabores.png')} // Asegúrate de tener tu logo aquí
+                source={require('../assets/images/saberesysabores.png')} 
                 style={styles.logo}
                 resizeMode="contain"
             />
@@ -65,7 +64,7 @@ const styles = StyleSheet.create({
     },
     backButton: {
         marginTop: 24,
-        color:'#EDE5D8,' // boton volver
+        color:'#EDE5D8,' 
     },
     backText: {
         fontSize: 14,

@@ -12,7 +12,6 @@ export default function PaymentRequired() {
   const [dniFondo, setDniFondo] = useState<string | null>(null);
   const [tramite, setTramite] = useState('');
 
-  // Limpia el prefijo del base64
   const cleanBase64 = (dataUrl: string | null) => {
     if (!dataUrl) return null;
     return dataUrl.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
@@ -35,7 +34,6 @@ export default function PaymentRequired() {
       Alert.alert('Faltan datos', 'Por favor completá todos los campos.');
       return;
     }
-    // Guardar datos en AsyncStorage (solo base64 puro)
     await AsyncStorage.setItem('alumno_numeroTarjeta', cardNumber);
     await AsyncStorage.setItem('alumno_dniFrente', cleanBase64(dniFrente) ?? '');
     await AsyncStorage.setItem('alumno_dniFondo', cleanBase64(dniFondo) ?? '');

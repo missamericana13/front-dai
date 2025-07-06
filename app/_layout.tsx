@@ -19,12 +19,12 @@ export default function RootLayout() {
   }, [netInfo.isInternetReachable]);
 
   const handleRetry = () => {
-    // Forzar nuevo chequeo
-    setIsReady(false); // muestra el loader mientras NetInfo actualiza
+
+    setIsReady(false);
     setTimeout(() => {
       setHasInternet(netInfo.isInternetReachable ?? false);
       setIsReady(true);
-    }, 100); // pequeña espera para refrescar
+    }, 100); 
   };
 
   if (!isReady) {

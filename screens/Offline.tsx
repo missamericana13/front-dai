@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1, // hace que el contenido se centre verticalmente
+    flex: 1, 
   },
   text: {
     color: 'white',

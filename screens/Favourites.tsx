@@ -17,7 +17,6 @@ import { useAuth } from '../context/authContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
-// ✅ CORREGIDO: Interface para RecetaGuardada del backend
 interface RecetaGuardada {
   idRecetaGuardada: number;
   receta: {
@@ -46,7 +45,6 @@ export default function FavoriteRecipesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ CORREGIDO: Obtener favoritos según tu estructura real
   const obtenerFavoritos = async (showLoading = true) => {
     if (!user?.id) {
       console.log('❌ No hay usuario logueado');
@@ -92,7 +90,6 @@ export default function FavoriteRecipesScreen() {
     }
   };
 
-  // ✅ NUEVO: Recargar favoritos cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
       console.log('🔄 Pantalla de favoritos recibió foco - recargando...');
@@ -100,7 +97,6 @@ export default function FavoriteRecipesScreen() {
     }, [user?.id])
   );
 
-  // ✅ CORREGIDO: Eliminar de favoritos usando idRecetaGuardada
   const eliminarFavorito = async (item: RecetaGuardada) => {
     if (!user?.id) return;
 
@@ -119,7 +115,6 @@ export default function FavoriteRecipesScreen() {
             try {
               const token = await AsyncStorage.getItem('token');
               
-              // ✅ USAR EL ENDPOINT CORRECTO con idReceta
               const response = await fetch(
                 `http://192.168.1.31:8080/api/recetas/guardadas/${idReceta}?idUsuario=${user.id}`,
                 {
@@ -134,7 +129,6 @@ export default function FavoriteRecipesScreen() {
                 throw new Error('No se pudo eliminar de favoritos');
               }
 
-              // ✅ Actualizar lista local
               setRecetasFavoritas(prev => 
                 prev.filter(fav => fav.receta.idReceta !== idReceta)
               );
@@ -150,7 +144,6 @@ export default function FavoriteRecipesScreen() {
     );
   };
 
-  // ✅ Formatear tiempo de preparación
   const formatearTiempo = (minutos?: number) => {
     if (!minutos) return 'Sin especificar';
     
@@ -163,20 +156,17 @@ export default function FavoriteRecipesScreen() {
     }
   };
 
-  // ✅ Refresh manual
   const onRefresh = () => {
     setRefreshing(true);
     obtenerFavoritos(false);
   };
 
-  // ✅ Navegar a detalle de receta
   const irADetalle = (item: RecetaGuardada) => {
     const idReceta = item.receta.idReceta;
     console.log('🔗 Navegando a receta:', idReceta);
     router.push(`/drawer/recipedetail?id=${idReceta}`);
   };
 
-  // ✅ CORREGIDO: Renderizar cada receta favorita según nueva estructura
   const renderReceta = ({ item, index }: { item: RecetaGuardada; index: number }) => {
     const { receta } = item;
     
@@ -245,7 +235,6 @@ export default function FavoriteRecipesScreen() {
     );
   };
 
-  // ✅ Pantalla de loading
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -255,7 +244,6 @@ export default function FavoriteRecipesScreen() {
     );
   }
 
-  // ✅ Pantalla sin favoritos
   if (recetasFavoritas.length === 0) {
     return (
       <View style={styles.centerContainer}>
@@ -275,7 +263,6 @@ export default function FavoriteRecipesScreen() {
     );
   }
 
-  // ✅ Lista de favoritos
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -304,7 +291,6 @@ export default function FavoriteRecipesScreen() {
   );
 }
 
-// ✅ Mantener los mismos estilos...
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 

@@ -19,20 +19,15 @@ export default function MyProfile() {
   const [role, setRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() as 'alumno' | 'usuario' || 'usuario');
   const [previousRole, setPreviousRole] = useState<'alumno' | 'usuario'>(user?.rol?.toLowerCase() as 'alumno' | 'usuario' || 'usuario');
   const [showRoleModal, setShowRoleModal] = useState(false);
-  
-  // ✅ Estado para datos de alumno
   const [showAlumnoData, setShowAlumnoData] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [dniFrente, setDniFrente] = useState('');
   const [dniFondo, setDniFondo] = useState('');
   const [tramite, setTramite] = useState('');
-
-  // Avatar
   const [avatar, setAvatar] = useState(user?.photoURL || '');
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
 
   useEffect(() => {
-    // Solo mostrar los datos de alumno si es alumno
     if (role === 'alumno') {
       loadAlumnoData();
     }
@@ -40,7 +35,6 @@ export default function MyProfile() {
 
   const loadAlumnoData = async () => {
     try {
-      // Intentar cargar desde AsyncStorage primero
       const savedCardNumber = await AsyncStorage.getItem('alumno_numeroTarjeta') || '';
       const savedDniFrente = await AsyncStorage.getItem('alumno_dniFrente') || '';
       const savedDniFondo = await AsyncStorage.getItem('alumno_dniFondo') || '';
@@ -51,7 +45,6 @@ export default function MyProfile() {
       setDniFondo(savedDniFondo);
       setTramite(savedTramite);
 
-      // Si no hay datos en AsyncStorage, intentar cargar desde el backend
       if (!savedCardNumber && user?.rol?.toLowerCase() === 'alumno') {
         const token = await AsyncStorage.getItem('token');
         if (token) {
@@ -65,7 +58,6 @@ export default function MyProfile() {
               const alumnoData = await response.json();
               setCardNumber(alumnoData.numeroTarjeta || '');
               setTramite(alumnoData.tramite || '');
-              // Note: Las imágenes del DNI no se cargan por seguridad
             }
           } catch (error) {
             console.log('No se pudieron cargar datos de alumno desde el backend');
@@ -131,14 +123,12 @@ export default function MyProfile() {
     setAvatarBase64(null);
     setShowAlumnoData(false);
     
-    // Restaurar datos de alumno si cancela
     if (previousRole === 'alumno') {
       loadAlumnoData();
     }
   };
 
   const handleSave = async () => {
-    // ✅ Si cambió a alumno, validar datos
     if (role === 'alumno' && (!cardNumber || !dniFrente || !dniFondo || !tramite)) {
       Alert.alert('Faltan datos', 'Por favor completá todos los datos de alumno.');
       return;
@@ -156,7 +146,6 @@ export default function MyProfile() {
       if (role !== user.rol?.toLowerCase()) updateData.rol = role;
       if (avatarBase64) updateData.avatar = avatarBase64;
 
-      // ✅ Si es alumno, agregar los datos
       if (role === 'alumno') {
         updateData.numeroTarjeta = cardNumber;
         updateData.dniFrente = cleanBase64(dniFrente);
@@ -181,7 +170,6 @@ export default function MyProfile() {
       });
 
       if (res.ok) {
-        // ✅ Guardar datos en AsyncStorage para próximas veces
         if (role === 'alumno') {
           await AsyncStorage.setItem('alumno_numeroTarjeta', cardNumber);
           await AsyncStorage.setItem('alumno_dniFrente', cleanBase64(dniFrente));
@@ -189,7 +177,6 @@ export default function MyProfile() {
           await AsyncStorage.setItem('alumno_tramite', tramite);
         }
 
-        // ✅ NUEVO: Actualizar el rol en el contexto de autenticación
         if (role !== user.rol?.toLowerCase() && refreshUserRole) {
           await refreshUserRole();
         }
@@ -232,7 +219,7 @@ export default function MyProfile() {
           style: 'destructive',
           onPress: () => {
             setRole('alumno');
-            setShowAlumnoData(true); // ✅ Mostrar formulario de datos
+            setShowAlumnoData(true); 
             toggleRoleModal();
           }
         }

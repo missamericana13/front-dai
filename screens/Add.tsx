@@ -17,7 +17,6 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
-// ✅ Interface para TipoReceta
 interface TipoReceta {
   idTipo: number;
   descripcion: string;
@@ -36,8 +35,6 @@ export default function AddRecipeScreen() {
   const [servings, setServings] = useState('');
   const [preparationTime, setPreparationTime] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  
-  // ✅ Estados para tipos de receta
   const [selectedTipoReceta, setSelectedTipoReceta] = useState<number | null>(null);
   const [tiposReceta, setTiposReceta] = useState<TipoReceta[]>([]);
   const [loadingTipos, setLoadingTipos] = useState(false);
@@ -56,7 +53,6 @@ export default function AddRecipeScreen() {
     setSelectedTipoReceta(null);
   };
 
-  // ✅ Cargar tipos de receta al inicializar
   useEffect(() => {
     const fetchTiposReceta = async () => {
       setLoadingTipos(true);
@@ -170,7 +166,6 @@ export default function AddRecipeScreen() {
         cantidadPersonas: servings ? parseInt(servings) : 1,
         tiempoPreparacion: preparationTime ? parseInt(preparationTime) : null,
         dificultad: difficulty || null,
-        // ✅ AGREGAR TIPO DE RECETA
         tipoReceta: selectedTipoReceta ? { idTipo: selectedTipoReceta } : null,
         ingredientes: ingredients.map(item => ({
           cantidad: item.cantidad,
@@ -180,7 +175,6 @@ export default function AddRecipeScreen() {
 
       console.log('Enviando receta:', receta);
 
-      // 1. Crear la receta
       const res = await fetch(`http://192.168.1.31:8080/api/recetas?idUsuario=${userId}`, {
         method: 'POST',
         headers: {
@@ -196,7 +190,6 @@ export default function AddRecipeScreen() {
         return;
       }
 
-      // 2. Obtener el id de la receta creada
       const recetasRes = await fetch(`http://192.168.1.31:8080/api/recetas/usuario/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -208,7 +201,6 @@ export default function AddRecipeScreen() {
       }
       const idReceta = recetaCreada.idReceta;
 
-      // 3. Crear los pasos asociados a la receta
       for (let i = 0; i < steps.length; i++) {
         const paso = {
           receta: { idReceta },
@@ -674,7 +666,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // ✅ NUEVOS ESTILOS para tipos de receta
   tipoContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -37,7 +37,6 @@ export default function RegisterStep2() {
     });
 
     useEffect(() => {
-        // PEDIR PERMISO PARA GALERÍA AL INICIAR
         (async () => {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
@@ -56,7 +55,6 @@ export default function RegisterStep2() {
             setConfirmPassword((await AsyncStorage.getItem('register_confirmPassword')) || '');
             setRol((await AsyncStorage.getItem('register_rol')) || 'usuario');
 
-            // Leer datos de alumno si existen
             const numeroTarjeta = await AsyncStorage.getItem('alumno_numeroTarjeta');
             const dniFrente = await AsyncStorage.getItem('alumno_dniFrente');
             const dniFondo = await AsyncStorage.getItem('alumno_dniFondo');
@@ -68,7 +66,6 @@ export default function RegisterStep2() {
                 tramite: tramite || ''
             });
 
-            // Leer avatar si existe
             const avatarSaved = await AsyncStorage.getItem('register_avatar');
             setAvatar(avatarSaved || null);
         };
@@ -129,7 +126,7 @@ export default function RegisterStep2() {
                 nombre: `${nombre} ${apellido}`,
                 contrasena: password,
                 rol: rol.toUpperCase(),
-                avatar: avatar // base64 puro o null
+                avatar: avatar 
             },
             alumno: rol === 'alumno'
                 ? {
@@ -141,7 +138,6 @@ export default function RegisterStep2() {
                 : undefined
         };
 
-        // LOG para depuración
         console.log('RegistroRequest:', JSON.stringify(registroRequest, null, 2));
 
         try {
@@ -175,7 +171,6 @@ export default function RegisterStep2() {
                 'register_avatar'
             ]);
 
-            // Login automático
             const loginRes = await fetch('http://192.168.1.31:8080/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -191,7 +186,7 @@ export default function RegisterStep2() {
                 console.log('Error:', errorText);
 
                 Alert.alert('Registro exitoso', 'Te registraste correctamente.');
-                router.replace('/login'); // redirigir a login manual
+                router.replace('/login'); 
                 return;
             }
 

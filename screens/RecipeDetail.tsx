@@ -28,7 +28,6 @@ export default function RecipeDetailScreen() {
   const router = useRouter();
   const authContext = useContext(AuthContext);
   const user = authContext?.user;
-
   const [receta, setReceta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cantidadPersonas, setCantidadPersonas] = useState(1);
@@ -36,8 +35,6 @@ export default function RecipeDetailScreen() {
   const [calificaciones, setCalificaciones] = useState<any[]>([]);
   const [comentarioNuevo, setComentarioNuevo] = useState('');
   const [estrellasNueva, setEstrellasNueva] = useState(5);
-  
-  // ✅ NUEVO: Estados para favoritos
   const [isFavorito, setIsFavorito] = useState(false);
   const [loadingFavorito, setLoadingFavorito] = useState(false);
 
@@ -46,7 +43,6 @@ export default function RecipeDetailScreen() {
       try {
         setLoading(true);
 
-        // 1. Receta
         const res = await fetch(`${API_BASE_URL}/${id}`);
         if (!res.ok) throw new Error('No se pudo cargar la receta');
         const data = await res.json();
@@ -58,7 +54,6 @@ export default function RecipeDetailScreen() {
         });
         setCantidadPersonas(data.cantidadPersonas || data.porciones || 1);
 
-        // 2. Pasos
         const pasosRes = await fetch(`http://192.168.1.31:8080/api/pasos`);
         if (pasosRes.ok) {
           const allPasos = await pasosRes.json();
@@ -70,10 +65,8 @@ export default function RecipeDetailScreen() {
           setPasos([]);
         }
 
-        // 3. Calificaciones (comentarios)
         await fetchCalificaciones();
 
-        // 4. ✅ NUEVO: Verificar si está en favoritos
         await checkIfFavorito();
       } catch (e) {
         Alert.alert('Error', 'No se pudo cargar la receta');
@@ -95,7 +88,6 @@ export default function RecipeDetailScreen() {
     fetchAll();
   }, [id]);
 
-  // ✅ NUEVO: Verificar si la receta está en favoritos
   const checkIfFavorito = async () => {
   if (!user?.id) return;
   
@@ -115,9 +107,7 @@ export default function RecipeDetailScreen() {
       const favoritos = await response.json();
       console.log('🔍 Favoritos recibidos:', favoritos);
       
-      // ✅ CORREGIDO: Verificar diferentes posibles estructuras de datos
       const esFavorito = favoritos.some((fav: any) => {
-        // Verificar diferentes posibles campos donde puede estar el id
         const favId = fav.idReceta || fav.receta?.idReceta || fav.id;
         console.log('🔍 Comparando:', favId, 'con', id);
         return favId?.toString() === id?.toString();
@@ -131,7 +121,6 @@ export default function RecipeDetailScreen() {
   }
 };
 
-  // ✅ NUEVO: Guardar/Eliminar de favoritos
   const toggleFavorito = async () => {
     if (!user?.id) {
       Alert.alert('Iniciar sesión', 'Debes iniciar sesión para guardar favoritos');
@@ -144,7 +133,6 @@ export default function RecipeDetailScreen() {
       const token = await AsyncStorage.getItem('token');
       
       if (isFavorito) {
-        // Eliminar de favoritos
         const response = await fetch(
           `http://192.168.1.31:8080/api/recetas/guardadas/${id}?idUsuario=${user.id}`,
           {
@@ -162,7 +150,6 @@ export default function RecipeDetailScreen() {
           throw new Error('No se pudo eliminar de favoritos');
         }
       } else {
-        // Agregar a favoritos
         const response = await fetch(
           `http://192.168.1.31:8080/api/recetas/guardadas/${id}?idUsuario=${user.id}`,
           {
@@ -189,7 +176,6 @@ export default function RecipeDetailScreen() {
     }
   };
 
-  // Calcular promedio de estrellas real
   const promedioEstrellas =
     calificaciones.length === 0
       ? 0
@@ -230,7 +216,6 @@ export default function RecipeDetailScreen() {
     );
   };
 
-  // Render de estrellas para seleccionar
   const renderEstrellasInput = () => (
     <View style={styles.estrellasInputContainer}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -246,7 +231,6 @@ export default function RecipeDetailScreen() {
     </View>
   );
 
-  // POST al backend
   const enviarComentario = async () => {
     if (!comentarioNuevo.trim()) {
       Alert.alert('Error', 'El comentario no puede estar vacío');
@@ -282,7 +266,6 @@ export default function RecipeDetailScreen() {
       setEstrellasNueva(5);
       Alert.alert('Gracias', 'Tu comentario fue agregado y quedará pendiente de aprobación.');
       
-      // Refresca comentarios
       const califRes = await fetch(`http://192.168.1.31:8080/api/calificaciones/receta/${id}`);
       if (califRes.ok) {
         const califs = await califRes.json();
@@ -293,7 +276,6 @@ export default function RecipeDetailScreen() {
     }
   };
 
-  // ✅ Formatear tiempo de preparación
   const formatearTiempo = (minutos?: number) => {
     if (!minutos) return '60 min';
     

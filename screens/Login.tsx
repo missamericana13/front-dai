@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/authContext'; // Ajusta la ruta si es necesario
+import { useAuth } from '../context/authContext'; 
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -27,11 +27,9 @@ export default function Login() {
         return;
       }
 
-      // Guarda el token y el id en AsyncStorage
       await AsyncStorage.setItem('token', data.token);
       await AsyncStorage.setItem('user_id', data.id?.toString() || '');
 
-      // Guarda los datos del usuario en el contexto de autenticación
       const userData = {
         displayName: data.usuario,
         email: email,

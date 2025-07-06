@@ -17,9 +17,7 @@ import { useAuth } from '../context/authContext';
 
 const API_BASE_URL = 'http://192.168.1.31:8080/api/cursos';
 
-// ✅ MEJORADO: Placeholder con imágenes más confiables
 const getPlaceholderImage = (courseId: number): string => {
-  // Usar imágenes de Pexels que son más confiables que Unsplash
   const placeholderImages = [
     'https://images.pexels.com/photos/1251208/pexels-photo-1251208.jpeg?auto=compress&cs=tinysrgb&w=400&h=160&fit=crop', // Bread making
     'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=400&h=160&fit=crop', // Kitchen utensils
@@ -28,25 +26,19 @@ const getPlaceholderImage = (courseId: number): string => {
     'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=160&fit=crop', // Chef working
   ];
   
-  // Usar una imagen basada en el ID del curso para consistencia
   const imageIndex = courseId % placeholderImages.length;
   return placeholderImages[imageIndex];
 };
 
-// ✅ FUNCIÓN MEJORADA PARA VALIDAR BASE64 DE IMAGEN CON SOPORTE PARA URLs
 const isValidImageBase64 = (base64String: string): boolean => {
   try {
-    // Verificar que no esté vacío
     if (!base64String || base64String.trim() === '') {
       return false;
     }
 
-    // Verificar que sea un Base64 válido
     const decoded = atob(base64String);
     
-    // ✅ NUEVO: Si es una URL válida, permitirla
     if (decoded.startsWith('http')) {
-      // Verificar que sea una URL de imagen válida
       const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(decoded) ||
                         decoded.includes('pexels.com') ||
                         decoded.includes('unsplash.com') ||
@@ -61,7 +53,6 @@ const isValidImageBase64 = (base64String: string): boolean => {
       }
     }
     
-    // Verificar que tenga un tamaño mínimo para ser una imagen real
     if (decoded.length < 100) {
       console.log('⚠️ Base64 demasiado corto para ser imagen');
       return false;
@@ -79,13 +70,13 @@ interface Curso {
   nombre: string;
   descripcion?: string;
   imagenUrl?: string;
-  imagen?: string; // Base64 de la imagen (solo para alumnos)
+  imagen?: string;
   precio?: number;
   modalidad?: string;
   duracion?: number;
   imageLoadError?: boolean;
   fallbackUsed?: boolean;
-  isPlaceholder?: boolean; // ✅ Para identificar placeholders
+  isPlaceholder?: boolean; 
 }
 
 export default function CoursesScreen() {
@@ -117,40 +108,33 @@ export default function CoursesScreen() {
       let data: Curso[] = await response.json();
       console.log('📊 Cursos recibidos:', data.length, data);
 
-      // ✅ LÓGICA MEJORADA: Procesamiento de imágenes con soporte para URLs en Base64
       data = data.map((curso) => {
         let finalImageUrl = '';
         let fallbackUsed = false;
         let isPlaceholder = false;
         
         if (userRole === 'alumno') {
-          // Para alumnos: intentar usar imagen Base64 primero
           if (curso.imagen && isValidImageBase64(curso.imagen)) {
             const decoded = atob(curso.imagen);
             
-            // ✅ NUEVO: Si es una URL, usarla directamente
             if (decoded.startsWith('http')) {
               finalImageUrl = decoded;
               console.log(`🔗 Usando URL decodificada para curso ${curso.idCurso}: ${decoded}`);
             } else {
-              // Si son datos binarios, usar como Base64
               finalImageUrl = `data:image/jpeg;base64,${curso.imagen}`;
               console.log(`✅ Usando imagen Base64 válida para curso ${curso.idCurso}`);
             }
           } else {
-            // ✅ FALLBACK: Usar placeholder directamente si no hay imagen válida
             console.log(`⚠️ Sin imagen válida para curso ${curso.idCurso}, usando placeholder`);
             finalImageUrl = getPlaceholderImage(curso.idCurso);
             fallbackUsed = true;
             isPlaceholder = true;
           }
         } else {
-          // Para visitantes: intentar usar imagenUrl del backend
           if (curso.imagenUrl && curso.imagenUrl.trim() !== '') {
             finalImageUrl = `http://192.168.1.31:8080${curso.imagenUrl}`;
             console.log(`🔗 Usando imagenUrl para visitante curso ${curso.idCurso}: ${finalImageUrl}`);
           } else {
-            // ✅ FALLBACK: Usar placeholder para visitantes
             console.log(`⚠️ Sin imagenUrl para visitante curso ${curso.idCurso}, usando placeholder`);
             finalImageUrl = getPlaceholderImage(curso.idCurso);
             fallbackUsed = true;
@@ -207,7 +191,6 @@ export default function CoursesScreen() {
     <TouchableOpacity
       onPress={() => {
         if (userRole === 'alumno') {
-          // ✅ NUEVO: Pasar la URL de imagen al detalle
           router.push(`/drawer/coursesdetail?id=${item.idCurso}&imageUrl=${encodeURIComponent(item.imagenUrl || '')}`);
         }
       }}
@@ -410,7 +393,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     resizeMode: 'cover',
   },
-  // ✅ Overlay sutil para visitantes
   visitorOverlay: {
     position: 'absolute',
     bottom: 8,

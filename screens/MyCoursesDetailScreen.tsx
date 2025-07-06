@@ -16,9 +16,7 @@ import { useAuth } from '../context/authContext';
 
 const { width } = Dimensions.get('window');
 
-// ✅ MEJORADO: Placeholder con imágenes más confiables
 const getPlaceholderImage = (courseId: number): string => {
-  // Usar imágenes de Pexels que son más confiables que Unsplash
   const placeholderImages = [
     'https://images.pexels.com/photos/1251208/pexels-photo-1251208.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Bread making
     'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop', // Kitchen utensils
@@ -31,7 +29,6 @@ const getPlaceholderImage = (courseId: number): string => {
   return placeholderImages[imageIndex];
 };
 
-// ✅ FUNCIÓN PARA VALIDAR BASE64 DE IMAGEN CON SOPORTE PARA URLs
 const isValidImageBase64 = (base64String: string): boolean => {
   try {
     if (!base64String || base64String.trim() === '') {
@@ -40,9 +37,7 @@ const isValidImageBase64 = (base64String: string): boolean => {
 
     const decoded = atob(base64String);
     
-    // ✅ NUEVO: Si es una URL válida, permitirla
     if (decoded.startsWith('http')) {
-      // Verificar que sea una URL de imagen válida
       const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(decoded) ||
                         decoded.includes('pexels.com') ||
                         decoded.includes('unsplash.com') ||
@@ -57,7 +52,6 @@ const isValidImageBase64 = (base64String: string): boolean => {
       }
     }
     
-    // Verificar que tenga un tamaño mínimo para ser una imagen real
     if (decoded.length < 100) {
       console.log('⚠️ Base64 demasiado corto para ser imagen');
       return false;
@@ -71,7 +65,6 @@ const isValidImageBase64 = (base64String: string): boolean => {
 };
 
 export default function MyCourseDetailScreen() {
-  // ✅ NUEVO: Recibir también la imageUrl desde el listado
   const { id, idAsistencia, imageUrl } = useLocalSearchParams<{ 
     id: string; 
     idAsistencia: string; 
@@ -92,22 +85,18 @@ export default function MyCourseDetailScreen() {
       try {
         const token = await AsyncStorage.getItem('token');
         
-        // Obtener detalles del curso
         const cursoRes = await fetch(`http://192.168.1.31:8080/api/cursos/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!cursoRes.ok) throw new Error('No se pudo cargar el curso');
         const cursoData = await cursoRes.json();
         
-        // ✅ NUEVA LÓGICA: Priorizar imagen del listado, luego backend, luego placeholder
         let imageUrlToUse = '';
         
         if (imageUrl && imageUrl !== 'undefined' && imageUrl.trim() !== '') {
-          // 1. Usar imagen pasada desde el listado (decodificar si viene encoded)
           imageUrlToUse = decodeURIComponent(imageUrl);
           console.log('✅ Usando imagen del listado en MyCourses:', imageUrlToUse);
         } else if (cursoData.imagen && isValidImageBase64(cursoData.imagen)) {
-          // 2. Si no hay imagen del listado, intentar Base64 del backend
           const decoded = atob(cursoData.imagen);
           
           if (decoded.startsWith('http')) {
@@ -118,13 +107,11 @@ export default function MyCourseDetailScreen() {
             console.log('✅ Usando imagen Base64 del backend en MyCourses');
           }
         } else if (cursoData.imagenUrl) {
-          // 3. Intentar imagenUrl del backend
           imageUrlToUse = cursoData.imagenUrl.startsWith('http') 
             ? cursoData.imagenUrl 
             : `http://192.168.1.31:8080${cursoData.imagenUrl}`;
           console.log('🔗 Usando imagenUrl del backend en MyCourses:', imageUrlToUse);
         } else {
-          // 4. Fallback a placeholder
           imageUrlToUse = getPlaceholderImage(cursoData.idCurso);
           console.log('⚠️ Usando placeholder para curso en MyCourses:', cursoData.idCurso);
         }
@@ -132,7 +119,6 @@ export default function MyCourseDetailScreen() {
         setFinalImageUrl(imageUrlToUse);
         setCurso({ ...cursoData, imagenUrl: imageUrlToUse });
 
-        // Si tenemos ID de asistencia, obtener detalles de la inscripción
         if (idAsistencia) {
           const asistenciaRes = await fetch(`http://192.168.1.31:8080/api/asistencias/${idAsistencia}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -141,11 +127,9 @@ export default function MyCourseDetailScreen() {
             const asistenciaData = await asistenciaRes.json();
             setAsistencia(asistenciaData);
             
-            // Cargar historial de asistencia
             await fetchHistorialAsistencia(asistenciaData, token);
           }
         } else {
-          // Si no hay ID de asistencia, intentar obtener con datos del usuario
           await fetchAsistenciaByUser(token);
         }
       } catch (e) {
@@ -183,7 +167,6 @@ export default function MyCourseDetailScreen() {
         const historialData = await historialRes.json();
         console.log('📋 Historial completo recibido:', JSON.stringify(historialData, null, 2));
         
-        // ✅ NUEVO: Ver la estructura de cada registro
         historialData.forEach((registro, index) => {
           console.log(`📝 Registro ${index}:`, Object.keys(registro));
           console.log(`📅 Campos disponibles:`, {
@@ -204,7 +187,6 @@ export default function MyCourseDetailScreen() {
     if (!user?.id) return;
     
     try {
-      // Primero obtener el ID del alumno usando el ID del usuario
       const alumnoRes = await fetch(`http://192.168.1.31:8080/api/alumnos/por-usuario/${user.id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -214,14 +196,12 @@ export default function MyCourseDetailScreen() {
       const alumnoData = await alumnoRes.json();
       const idAlumno = alumnoData.idAlumno;
       
-      // Obtener los cursos inscriptos del alumno
       const cursosRes = await fetch(`http://192.168.1.31:8080/api/cursos/inscriptos?idAlumno=${idAlumno}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       
       if (cursosRes.ok) {
         const cursosData = await cursosRes.json();
-        // Buscar la asistencia que corresponde al curso actual
         const asistenciaEncontrada = cursosData.find((item: any) => 
           item.cronogramaCurso?.curso?.idCurso?.toString() === id
         );
@@ -237,7 +217,6 @@ export default function MyCourseDetailScreen() {
   };
 
   const formatFechaAsistencia = (registro: any) => {
-    // ✅ CORREGIDO: usar fechaHora que es el campo real de tu modelo
     const fechaString = registro.fechaHora || registro.fechaAsistencia;
     
     console.log('🔍 Registro completo:', registro);
@@ -251,35 +230,27 @@ export default function MyCourseDetailScreen() {
     try {
       let fecha: Date;
       
-      // ✅ MEJORADO: Manejo de LocalDateTime de Java
       if (typeof fechaString === 'string') {
-        // Formato LocalDateTime de Java: "2025-07-05T15:03:14.742205"
         if (fechaString.includes('T')) {
           fecha = new Date(fechaString);
         }
-        // Si viene como timestamp string
         else if (!isNaN(Number(fechaString))) {
           fecha = new Date(Number(fechaString));
         }
-        // Otros formatos
         else {
           fecha = new Date(fechaString);
         }
       } else if (typeof fechaString === 'number') {
-        // Si viene como timestamp numérico
         fecha = new Date(fechaString);
       } else {
-        // Si es un objeto fecha
         fecha = new Date(fechaString);
       }
       
-      // Verificar que la fecha sea válida
       if (isNaN(fecha.getTime())) {
         console.warn('❌ Fecha inválida después del parsing:', fechaString);
         return { fecha: 'Fecha inválida', hora: '--:--' };
       }
       
-      // ✅ FORMATO ARGENTINO MEJORADO
       const fechaFormateada = fecha.toLocaleDateString('es-AR', {
         weekday: 'long',
         year: 'numeric',
@@ -353,7 +324,6 @@ export default function MyCourseDetailScreen() {
             try {
               const token = await AsyncStorage.getItem('token');
               
-              // ✅ ENDPOINT CORREGIDO - usar el endpoint que existe en el backend
               const res = await fetch(
                 `http://192.168.1.31:8080/api/cursos/baja?idAlumno=${asistencia.alumno.idAlumno}&idCronograma=${asistencia.cronogramaCurso.idCronograma}`,
                 {
@@ -369,7 +339,6 @@ export default function MyCourseDetailScreen() {
                 return;
               }
 
-              // ✅ Marcar que se realizó una baja para actualizar el historial
               await AsyncStorage.setItem('historialNeedsRefresh', 'true');
               
               Alert.alert(
@@ -378,7 +347,6 @@ export default function MyCourseDetailScreen() {
                 [{ 
                   text: 'OK', 
                   onPress: () => {
-                    // Volver a la pantalla anterior
                     router.back();
                   }
                 }]
@@ -393,7 +361,6 @@ export default function MyCourseDetailScreen() {
     );
   };
 
-  // ✅ NUEVA FUNCIONALIDAD DE QR PARA ASISTENCIA
   const handleLeerQR = () => {
     Alert.alert(
       'Registrar asistencia',
@@ -413,7 +380,6 @@ export default function MyCourseDetailScreen() {
     );
   };
 
-  // ✅ FUNCIÓN DEMO PARA SIMULAR EL QR (mientras no tengas el scanner)
   const handleRegistrarAsistenciaDemo = async () => {
     if (!asistencia?.alumno?.idAlumno || !asistencia?.cronogramaCurso?.idCronograma) {
       Alert.alert('Error', 'No se puede registrar la asistencia');
@@ -439,7 +405,6 @@ export default function MyCourseDetailScreen() {
       
       Alert.alert('Éxito', 'Asistencia registrada correctamente mediante QR');
       
-      // ✅ RECARGAR HISTORIAL CON LOGS PARA DEBUG
       console.log('🔄 Recargando historial de asistencia...');
       const tokenRefresh = await AsyncStorage.getItem('token');
       await fetchHistorialAsistencia(asistencia, tokenRefresh);
@@ -467,11 +432,10 @@ export default function MyCourseDetailScreen() {
       if (res.ok) {
         const aprobado = await res.json();
         
-        // ✅ Calcular porcentaje de asistencia
         const totalClases = curso?.duracion || 0;
         const asistenciasRegistradas = historialAsistencia.length;
         const porcentajeAsistencia = totalClases > 0 ? (asistenciasRegistradas / totalClases) * 100 : 0;
-        const requierePorcentaje = 75; // 75% mínimo
+        const requierePorcentaje = 75; 
         
         Alert.alert(
           'Estado de aprobación',
@@ -524,7 +488,6 @@ export default function MyCourseDetailScreen() {
   const isActivo = !asistencia?.fechaBaja;
   const cronograma = asistencia?.cronogramaCurso;
 
-  // ✅ Calcular estadísticas de asistencia
   const totalClases = curso?.duracion || 0;
   const asistenciasRegistradas = historialAsistencia.length;
   const porcentajeAsistencia = totalClases > 0 ? (asistenciasRegistradas / totalClases) * 100 : 0;
@@ -686,7 +649,6 @@ export default function MyCourseDetailScreen() {
                 <View style={styles.historialContainer}>
                   <Text style={styles.historialTitle}>Historial de asistencias</Text>
                   {historialAsistencia.slice(-5).map((registro, index) => {
-                    // ✅ PASAR TODO EL REGISTRO A LA FUNCIÓN
                     const { fecha, hora } = formatFechaAsistencia(registro);
                     
                     return (
@@ -748,7 +710,6 @@ export default function MyCourseDetailScreen() {
   );
 }
 
-// ✅ Mantengo todos los estilos existentes
 const styles = StyleSheet.create({
   container: {
     flex: 1,

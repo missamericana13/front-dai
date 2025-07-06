@@ -21,7 +21,7 @@ const API_BASE_URL = 'http://192.168.1.31:8080/api/recetas/aprobadas';
 
 interface Usuario {
   nombre: string;
-  avatar?: string; // base64
+  avatar?: string; 
 }
 
 interface TipoReceta {
@@ -32,7 +32,7 @@ interface Receta {
   idReceta: number;
   nombreReceta: string;
   descripcionReceta?: string;
-  fotoPrincipal?: string; // base64
+  fotoPrincipal?: string; 
   usuario: Usuario;
   porciones?: number;
   cantidadPersonas?: number;
@@ -67,7 +67,6 @@ export default function RecipesScreen() {
 
       console.log('✅ Recetas cargadas:', data.length);
 
-      // ✅ Procesar imágenes y avatares
       data = data.map((receta) => ({
         ...receta,
         fotoPrincipal: receta.fotoPrincipal
@@ -99,13 +98,11 @@ export default function RecipesScreen() {
     fetchRecetas();
   }, []);
 
-  // ✅ Refresh manual
   const onRefresh = () => {
     setRefreshing(true);
     fetchRecetas(false);
   };
 
-  // ✅ Formatear tiempo de preparación
   const formatearTiempo = (minutos?: number) => {
     if (!minutos) return null;
     
@@ -139,7 +136,6 @@ export default function RecipesScreen() {
     setRecetas(recetasOrdenadas);
   };
 
-  // ✅ Botón de ordenamiento mejorado
   const BotonOrden = ({
     label,
     clave,
@@ -175,7 +171,6 @@ export default function RecipesScreen() {
     );
   };
 
-  // ✅ Card de receta mejorada
   const renderItem = ({ item }: { item: Receta }) => (
     <TouchableOpacity
       style={styles.card}
@@ -251,7 +246,6 @@ export default function RecipesScreen() {
     </TouchableOpacity>
   );
 
-  // ✅ Pantalla de loading
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -263,7 +257,6 @@ export default function RecipesScreen() {
     );
   }
 
-  // ✅ Pantalla sin recetas
   if (recetas.length === 0) {
     return (
       <SafeAreaView style={styles.container}>

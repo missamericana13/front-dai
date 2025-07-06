@@ -55,22 +55,18 @@ export default function SearchScreen() {
   const [filterVisible, setFilterVisible] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Filtros
   const [ingrediente, setIngrediente] = useState('');
   const [sinIngrediente, setSinIngrediente] = useState('');
   const [sortBy, setSortBy] = useState('nombreReceta');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   
-  // ✅ NUEVO: Estados para tipos de receta
   const [selectedTipoFilter, setSelectedTipoFilter] = useState<number | null>(null);
   const [tiposReceta, setTiposReceta] = useState<TipoReceta[]>([]);
   const [loadingTipos, setLoadingTipos] = useState(false);
 
-  // Sugerencias y recomendaciones
   const [sugerencias, setSugerencias] = useState<Receta[]>([]);
   const [recomendadas, setRecomendadas] = useState<Receta[]>([]);
 
-  // ✅ Formatear tiempo de preparación
   const formatearTiempo = (minutos?: number) => {
     if (!minutos) return null;
     
@@ -83,7 +79,6 @@ export default function SearchScreen() {
     }
   };
 
-  // ✅ NUEVO: Cargar tipos de receta al inicializar
   useEffect(() => {
     const fetchTiposReceta = async () => {
       setLoadingTipos(true);
@@ -105,7 +100,6 @@ export default function SearchScreen() {
     fetchTiposReceta();
   }, []);
 
-  // Cargar sugerencias (últimas 3 recetas creadas)
   useEffect(() => {
     const fetchSugerencias = async () => {
       try {
@@ -136,9 +130,7 @@ export default function SearchScreen() {
     fetchSugerencias();
   }, []);
 
-  // ✅ ACTUALIZADO: Construir la URL según los filtros (incluyendo tipo)
   const buildUrl = () => {
-    // Prioridad: tipo > ingrediente > sin ingrediente > búsqueda por nombre
     if (selectedTipoFilter) {
       return `${API_BASE_URL}/tipo/${selectedTipoFilter}?sortBy=${sortBy}&order=${order}`;
     }
@@ -152,7 +144,6 @@ export default function SearchScreen() {
   };
 
   const handleSearch = async () => {
-    // ✅ ACTUALIZADO: Permitir búsqueda solo por tipo
     if (!searchText.trim() && !ingrediente && !sinIngrediente && !selectedTipoFilter) {
       Alert.alert('Búsqueda vacía', 'Escribe algo para buscar o usa los filtros');
       return;
@@ -190,7 +181,6 @@ export default function SearchScreen() {
 
       setRecetas(data);
 
-      // Si no hay resultados, mostrar recomendaciones
       if (data.length === 0) {
         setRecomendadas(sugerencias);
       }
@@ -206,7 +196,6 @@ export default function SearchScreen() {
     }
   };
 
-  // ✅ Refresh
   const onRefresh = () => {
     setRefreshing(true);
     if (hasSearched) {
@@ -216,7 +205,6 @@ export default function SearchScreen() {
     }
   };
 
-  // ✅ ACTUALIZADO: Verificar si hay filtros activos (incluyendo tipo)
   const hasActiveFilters = ingrediente || sinIngrediente || selectedTipoFilter || sortBy !== 'nombreReceta' || order !== 'asc';
 
   const applyFilters = () => {
@@ -224,7 +212,6 @@ export default function SearchScreen() {
     handleSearch();
   };
 
-  // ✅ ACTUALIZADO: Limpiar todos los filtros (incluyendo tipo)
   const clearFilters = () => {
     setIngrediente('');
     setSinIngrediente('');
@@ -234,7 +221,6 @@ export default function SearchScreen() {
     setFilterVisible(false);
   };
 
-  // ✅ NUEVO: Función para buscar por tipo directamente (para acciones rápidas)
   const buscarPorTipo = (idTipo: number) => {
     setSelectedTipoFilter(idTipo);
     setSearchText('');
@@ -243,7 +229,6 @@ export default function SearchScreen() {
     handleSearch();
   };
 
-  // ✅ Cards mejoradas
   const renderItem = ({ item }: { item: Receta }) => (
     <TouchableOpacity
       style={styles.card}
@@ -316,7 +301,6 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
-  // ✅ Sugerencias compactas
   const renderSugerenciaItem = ({ item }: { item: Receta }) => (
     <TouchableOpacity
       style={styles.sugerenciaCard}
@@ -340,7 +324,6 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
-  // ✅ NUEVO: Renderizar acciones rápidas por tipo
   const renderQuickActionItem = ({ item }: { item: TipoReceta }) => (
     <TouchableOpacity
       style={styles.quickActionCard}
@@ -835,7 +818,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  // ✅ NUEVOS: Estilos para acciones rápidas por tipo
   quickActionsSection: {
     marginTop: 20,
     paddingHorizontal: 16,
@@ -1007,7 +989,6 @@ const styles = StyleSheet.create({
   verMasContainer: {
     padding: 4,
   },
-  // ✅ Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1058,7 +1039,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2B5399',
   },
-  // ✅ NUEVOS: Estilos para filtros de tipo
   loadingTiposContainer: {
     flexDirection: 'row',
     alignItems: 'center',

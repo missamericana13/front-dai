@@ -15,12 +15,10 @@ export default function ValidationScreen() {
     }
     setLoading(true);
 
-    // Recupera el email y alias del registro
     const email = await AsyncStorage.getItem('register_email');
     const alias = await AsyncStorage.getItem('register_alias');
 
     try {
-      // Verifica el código con el backend
       const res = await fetch(
         `http://192.168.1.31:8080/api/usuarios/registro/verificar-codigo?email=${encodeURIComponent(email ?? '')}&alias=${encodeURIComponent(alias ?? '')}&codigo=${encodeURIComponent(code)}`,
         { method: 'POST' }

@@ -17,7 +17,6 @@ export default function MyCoursesScreen() {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      // Primero obtener el ID del alumno usando el ID del usuario
       const alumnoRes = await fetch(`http://192.168.1.31:8080/api/alumnos/por-usuario/${user.id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -30,7 +29,6 @@ export default function MyCoursesScreen() {
       const alumnoData = await alumnoRes.json();
       const idAlumno = alumnoData.idAlumno;
       
-      // Obtener los cursos inscriptos
       const res = await fetch(`http://192.168.1.31:8080/api/cursos/inscriptos?idAlumno=${idAlumno}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

@@ -8,10 +8,8 @@ export default function Inicio() {
 
   useEffect(() => {
     const prepare = async () => {
-      // Simulá una carga de recursos o datos aquí si es necesario
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Ocultá el splash screen y navegá a la pantalla principal
       await SplashScreen.hideAsync();
       router.replace('/drawer');
     };

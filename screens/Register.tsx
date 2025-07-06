@@ -28,7 +28,6 @@ export default function Register() {
     setAlias('');
   }, []);
 
-  // Devuelve true si el mail ya existe y está registrado
   const checkEmailExists = async (email: string) => {
     try {
       const res = await fetch(`http://192.168.1.31:8080/api/usuarios/existe-email?email=${encodeURIComponent(email)}`);
@@ -40,7 +39,6 @@ export default function Register() {
     }
   };
 
-  // Devuelve true si el alias ya existe
   const checkAliasExists = async (alias: string) => {
     try {
       const res = await fetch(`http://192.168.1.31:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
@@ -52,15 +50,12 @@ export default function Register() {
     }
   };
 
-  // Devuelve sugerencias aleatorias y que no existan
   const generateAvailableAliases = async (alias: string) => {
     try {
       const res = await fetch(`http://192.168.1.31:8080/api/usuarios/sugerir-alias?alias=${encodeURIComponent(alias)}`);
       if (!res.ok) return [];
       let sugerencias = await res.json();
-      // Filtra el alias original y los que ya existen (por seguridad)
       sugerencias = sugerencias.filter((s: string) => s !== alias);
-      // Mezcla aleatoriamente y toma hasta 5
       for (let i = sugerencias.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [sugerencias[i], sugerencias[j]] = [sugerencias[j], sugerencias[i]];
@@ -79,7 +74,6 @@ export default function Register() {
 
     setLoading(true);
 
-    // 1. Chequea si el mail ya está registrado
     if (await checkEmailExists(email)) {
       setLoading(false);
       Alert.alert(
@@ -89,7 +83,6 @@ export default function Register() {
       return;
     }
 
-    // 2. Chequea si el alias ya está registrado
     if (await checkAliasExists(alias)) {
       setLoading(false);
       const suggestions = await generateAvailableAliases(alias);
@@ -109,7 +102,6 @@ export default function Register() {
       return;
     }
 
-    // 3. Intenta iniciar el registro
     try {
       const res = await fetch(
         `http://192.168.1.31:8080/api/usuarios/registro/iniciar?email=${encodeURIComponent(email)}&alias=${encodeURIComponent(alias)}`,

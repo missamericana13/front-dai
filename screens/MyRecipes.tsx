@@ -18,7 +18,7 @@ const API_BASE_URL = 'http://192.168.1.31:8080/api/recetas';
 
 interface Usuario {
   nombre: string;
-  avatar?: string; // base64
+  avatar?: string; 
 }
 
 interface TipoReceta {
@@ -29,7 +29,7 @@ interface Receta {
   idReceta: number;
   nombreReceta: string;
   descripcionReceta?: string;
-  fotoPrincipal?: string; // base64
+  fotoPrincipal?: string; 
   usuario: Usuario;
   porciones?: number;
   cantidadPersonas?: number;
@@ -62,7 +62,6 @@ export default function MyRecipesScreen() {
       if (!response.ok) throw new Error('Error al obtener recetas');
       let data: Receta[] = await response.json();
 
-      // Convertir imágenes y avatar a base64 URI o usar placeholder online
       data = data.map((receta) => ({
         ...receta,
         fotoPrincipal: receta.fotoPrincipal

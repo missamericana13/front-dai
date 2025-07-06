@@ -9,7 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-// ✅ PLACEHOLDER de ejemplo para cuando no hay imagen
 const getPlaceholderImage = (courseId: number): string => {
   const placeholderImages = [
     'https://images.pexels.com/photos/1251208/pexels-photo-1251208.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop',
@@ -23,7 +22,6 @@ const getPlaceholderImage = (courseId: number): string => {
   return placeholderImages[imageIndex];
 };
 
-// ✅ FUNCIÓN PARA VALIDAR BASE64 DE IMAGEN CON SOPORTE PARA URLs
 const isValidImageBase64 = (base64String: string): boolean => {
   try {
     if (!base64String || base64String.trim() === '') {
@@ -93,7 +91,6 @@ interface Cronograma {
 }
 
 export default function CourseDetailScreen() {
-  // ✅ NUEVO: Recibir también la imageUrl desde el listado
   const { id, imageUrl } = useLocalSearchParams<{ id: string; imageUrl?: string }>();
   const { user, userRole } = useAuth();
   const router = useRouter();
@@ -109,23 +106,19 @@ export default function CourseDetailScreen() {
       setLoading(true);
       try {
         const token = await AsyncStorage.getItem('token');
-        
-        // Obtener curso
+
         const resCurso = await fetch(`http://192.168.1.31:8080/api/cursos/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!resCurso.ok) throw new Error('No se pudo cargar el curso');
         const dataCurso = await resCurso.json();
-        
-        // ✅ NUEVA LÓGICA: Priorizar imagen del listado, luego backend, luego placeholder
+
         let imageUrlToUse = '';
         
         if (imageUrl && imageUrl !== 'undefined' && imageUrl.trim() !== '') {
-          // 1. Usar imagen pasada desde el listado (decodificar si viene encoded)
           imageUrlToUse = decodeURIComponent(imageUrl);
           console.log('✅ Usando imagen del listado:', imageUrlToUse);
         } else if (dataCurso.imagen && isValidImageBase64(dataCurso.imagen)) {
-          // 2. Si no hay imagen del listado, intentar Base64 del backend
           const decoded = atob(dataCurso.imagen);
           
           if (decoded.startsWith('http')) {
@@ -136,13 +129,11 @@ export default function CourseDetailScreen() {
             console.log('✅ Usando imagen Base64 del backend');
           }
         } else if (dataCurso.imagenUrl) {
-          // 3. Intentar imagenUrl del backend
           imageUrlToUse = dataCurso.imagenUrl.startsWith('http') 
             ? dataCurso.imagenUrl 
             : `http://192.168.1.31:8080${dataCurso.imagenUrl}`;
           console.log('🔗 Usando imagenUrl del backend:', imageUrlToUse);
         } else {
-          // 4. Fallback a placeholder
           imageUrlToUse = getPlaceholderImage(dataCurso.idCurso);
           console.log('⚠️ Usando placeholder para curso:', dataCurso.idCurso);
         }
@@ -150,7 +141,6 @@ export default function CourseDetailScreen() {
         setFinalImageUrl(imageUrlToUse);
         setCurso({ ...dataCurso, imagenUrl: imageUrlToUse });
 
-        // Obtener cronogramas específicos del curso
         const resCrono = await fetch(`http://192.168.1.31:8080/api/cronogramas?cursoId=${id}`);
         const dataCrono = resCrono.ok ? await resCrono.json() : [];
         setCronogramas(dataCrono);
@@ -192,7 +182,6 @@ export default function CourseDetailScreen() {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      // Obtener ID del alumno
       const alumnoRes = await fetch(`http://192.168.1.31:8080/api/alumnos/por-usuario/${user.id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -204,8 +193,7 @@ export default function CourseDetailScreen() {
       
       const alumnoData = await alumnoRes.json();
       const idAlumno = alumnoData.idAlumno;
-      
-      // Realizar inscripción
+
       const res = await fetch(
         `http://192.168.1.31:8080/api/cursos/inscribir?idAlumno=${idAlumno}&idCronograma=${selectedCronograma}`,
         {
@@ -223,8 +211,6 @@ export default function CourseDetailScreen() {
         }
         return;
       }
-
-      // ✅ Marcar que se realizó una inscripción para actualizar el historial
       await AsyncStorage.setItem('historialNeedsRefresh', 'true');
 
       Alert.alert(
@@ -252,7 +238,6 @@ export default function CourseDetailScreen() {
     return `${d}/${m}/${y}`;
   };
 
-  // Agrupar cronogramas por sede
   const sedesDisponibles = cronogramas.reduce((acc: any[], cronograma) => {
     const sedeExistente = acc.find(item => item.sede.idSede === cronograma.sede.idSede);
     if (sedeExistente) {

@@ -83,20 +83,16 @@ export default function HistorialComprasScreen() {
       const data = await cuentaRes.json();
       console.log('📊 Datos del historial:', JSON.stringify(data, null, 2));
       
-      // ✅ Crear movimientos de reintegro para cursos cancelados si no existen
       const movimientosConReintegros = [...(data.movimientos || [])];
       
-      // Buscar cursos cancelados y agregar reintegros si no existen
       data.cursosInscriptos?.forEach((curso: any) => {
         if (curso.estado === 'CANCELADO' && curso.fechaBaja) {
-          // Verificar si ya existe un reintegro para este curso
           const yaExisteReintegro = movimientosConReintegros.some(mov => 
             mov.tipoMovimiento === 'CREDITO_REINTEGRO' && 
             mov.idAsistencia === curso.idAsistencia
           );
           
           if (!yaExisteReintegro) {
-            // Calcular porcentaje de reintegro basado en la fecha de baja vs fecha de inicio
             const fechaBaja = new Date(curso.fechaBaja);
             const fechaInicio = new Date(curso.fechaInicio);
             const diffTime = fechaInicio.getTime() - fechaBaja.getTime();
@@ -110,7 +106,6 @@ export default function HistorialComprasScreen() {
             const montoReintegro = (curso.montoPagado * porcentajeReintegro) / 100;
             
             if (montoReintegro > 0) {
-              // Crear movimiento de reintegro
               movimientosConReintegros.push({
                 id: `reintegro-${curso.idAsistencia}-${Date.now()}`,
                 tipoMovimiento: 'CREDITO_REINTEGRO',
@@ -128,7 +123,6 @@ export default function HistorialComprasScreen() {
         }
       });
       
-      // ✅ Ordenar cursos por fecha de inscripción (más reciente primero)
       const cursosOrdenados = (data.cursosInscriptos || []).sort((a: any, b: any) => {
         const fechaA = new Date(a.fechaInscripcion || a.fechaInicio);
         const fechaB = new Date(b.fechaInscripcion || b.fechaInicio);
@@ -161,7 +155,6 @@ export default function HistorialComprasScreen() {
     loadData();
   }, [user, userRole]);
 
-  // ✅ ACTUALIZACIÓN AUTOMÁTICA: Se ejecuta cada vez que la pantalla obtiene foco
   useFocusEffect(
     useCallback(() => {
       if (userRole === 'alumno' && !loading) {
@@ -200,14 +193,14 @@ export default function HistorialComprasScreen() {
       case 'DEBITO_INSCRIPCION':
         return { 
           icon: 'school-outline', 
-          color: '#dc3545', // Rojo para débitos
+          color: '#dc3545', 
           label: 'Pago de Curso',
           showAs: 'payment'
         };
       case 'CREDITO_REINTEGRO':
         return { 
           icon: 'arrow-back-circle-outline', 
-          color: '#28a745', // Verde para créditos
+          color: '#28a745', 
           label: 'Reintegro por Baja',
           showAs: 'credit'
         };
